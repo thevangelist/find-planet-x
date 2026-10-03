@@ -316,7 +316,7 @@ const Game = (() => {
     Audio_.loop('safelight', 0.2, 1);
     for (let i = 0; i < und.length; i++) {
       const p = und[i]; const result = await developOne(p, i + 1, und.length);
-      p.developed = true; p.dev = result; tick(20); S.energy = clamp(S.energy - 0.02, 0, 1);
+      p.developed = true; p.dev = result; p.devT = S.t; tick(20); S.energy = clamp(S.energy - 0.02, 0, 1);
     }
     Audio_.stop('safelight', 1); live = true; save();
     goTo('comparator');
@@ -395,7 +395,7 @@ const Game = (() => {
           chronicle(`${reg.name}: new ${f.kind}. Reported to Slipher as ${f.prov}. ${f.kind === 'comet' ? 'A comet of my own.' : f.kind === 'variable' ? 'Brightness changed, position did not.' : 'Motion too fast for Planet X, but nobody has it on the lists.'}`);
           toast(`A real discovery: ${f.prov}, ${f.name}. ${f.note}.`, 7000); } }
         else if (s.kind === 'asteroid') chronicle(TEXT.logAuto.asteroid(reg.name)); else if (s.kind === 'defect') chronicle(TEXT.logAuto.defect(reg.name)); } });
-    S.blinked[pr.key] = true; save();
+    S.blinked[pr.key] = S.t; save();
     const open = res.suspects.filter(s => !s.verdict).length;
     chronicle(TEXT.logAuto.blinked(reg.name, Astro.fmtShort(pr.a.t), Astro.fmtShort(pr.b.t), res.suspects.length) + (open ? ` ${open} unchecked, a third plate is needed.` : ''));
     if (res.found) return discovery(pr);
@@ -486,16 +486,21 @@ const Game = (() => {
     for (let i = 0; i < startDow; i++) cells.push('<div class="cell empty"></div>');
     for (let d = 1; d <= days; d++) {
       const t = Date.UTC(y, m, d), k = Astro.key(t), today = k === Astro.key(S.t), past = t < S.t - Astro.DAY / 2;
-      const ill = Astro.moonIllum(t), plates = S.plates.filter(p => Astro.key(p.t) === k && !p.ruined);
+      const ill = Astro.moonIllum(t), plates = S.plates.filter(p => Astro.key(p.t) === k);
+      const dev = S.plates.filter(p => p.devT && Astro.key(p.devT) === k).length;
+      const blinked = Object.entries(S.blinked).filter(([, bt]) => bt !== true && Astro.key(bt) === k).map(([key]) => key.replace('-', '+'));
+      const notes = S.log.filter(e => e.d.startsWith(Astro.fmt(t))).length;
       const note = S.cal[k] || '';
+      const done = plates.map(p => `<span class="pl">${p.ruined ? 'lost' : 'No. ' + p.id}${p.label ? ' · ' + Astro.fieldStr(p.label.ra, p.label.dec) : p.ruined ? '' : ' · no label'}</span>`).join('')
+        + (dev ? `<span class="dv">developed ${dev}</span>` : '') + (blinked.length ? `<span class="bl">blinked ${blinked.join(', ')}</span>` : '') + (notes ? `<span class="nt">${notes} note${notes > 1 ? 's' : ''}</span>` : '')
+        + (S.foundDate && Astro.key(S.foundDate) === k ? '<span class="found">Planet X</span>' : '');
       cells.push(`<div class="cell${today ? ' today' : ''}${past ? ' past' : ''}" data-k="${k}">
         <span class="n">${d}</span><span class="moon" style="--ill:${ill.toFixed(2)}" title="moon ${Math.round(ill * 100)}%"></span>
-        ${plates.length ? `<span class="pl">${plates.length} plate${plates.length > 1 ? 's' : ''}</span>` : ''}
-        ${note ? `<span class="note">${note}</span>` : ''}</div>`);
+        ${done}${note ? `<span class="note">${note}</span>` : ''}</div>`);
     }
     const dark = (() => { let n = 0; for (let d = 1; d <= days; d++) if (Astro.moonDark(Date.UTC(y, m, d))) n++; return n; })();
     const cal = el('div', 'calendar fade', `<div class="cal-head"><button id="cal-prev">Earlier</button><h2>${Astro.FI_MONTHS[m]} ${y}</h2><button id="cal-next">Later</button></div>
-      <div class="cal-sub">${dark} moonless nights this month. Dark discs are dark of the moon. Click a day to write a plan. Nobody else remembers when a field needs its second plate.</div>
+      <div class="cal-sub">${dark} moonless nights this month. Dark discs are dark of the moon. Each day shows what was exposed, developed and blinked. Click a day to write a plan.</div>
       <div class="grid"><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>${cells.join('')}</div>`);
     root.appendChild(cal);
     $('#cal-prev').onclick = () => calendar(Date.UTC(y, m - 1, 1)); $('#cal-next').onclick = () => calendar(Date.UTC(y, m + 1, 1));
