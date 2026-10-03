@@ -14,20 +14,17 @@ const Blink = (() => {
           <div id="blink-mode">Mounting the plates…</div>
           <div id="blink-left"></div>
           <div id="blink-side">
-            <button id="btn-leave" class="primary">Done blinking &nbsp;<span class="kbd">Esc</span></button>
             <h3>Plate pair</h3>
             <div id="pair-info"></div>
-            <canvas id="plate-map" width="270" height="220"></canvas>
+            <canvas id="plate-map" width="270" height="200"></canvas>
+            <div class="tools"><button id="btn-side" class="chip">Side by side</button><button id="btn-pencil" class="chip on">Pencil</button><button id="btn-neg" class="chip">Negative</button></div>
+            <div class="legend">Left and right arrows switch plate A and B. Space flips. Draw a pencil ring around anything that jumps, then say what you think it is.</div>
             <h3>Suspects</h3>
             <div id="suspects"><span style="opacity:.5">No marks.</span></div>
             <h3>Note on this pair</h3>
             <textarea id="pair-note" rows="3" placeholder="free text, goes in the notebook"></textarea>
-            <button id="btn-note">Save note to the notebook</button>
-            <h3>&nbsp;</h3>
-            <button id="btn-side">Side by side &nbsp;<span class="kbd">B</span></button>
-            <button id="btn-pencil">Pencil / hand &nbsp;<span class="kbd">P</span></button>
-            <button id="btn-neg">Negative / positive &nbsp;<span class="kbd">N</span></button>
-            <div class="hints">Left and right arrows switch the plates. Draw a pencil ring around anything that jumps.</div>
+            <button id="btn-note">Save note</button>
+            <button id="btn-leave" class="primary">Done blinking &nbsp;<span class="kbd">Esc</span></button>
           </div>
         </div>`);
       scene.appendChild(wrap);
@@ -157,6 +154,7 @@ const Blink = (() => {
       function drawMap() {
         const sx = map.width / Sky.W, sy = map.height / Sky.H;
         mg.fillStyle = '#0b0c0e'; mg.fillRect(0, 0, map.width, map.height);
+        if (pair) { mg.globalAlpha = 0.9; mg.drawImage(pair.a, 0, 0, map.width, map.height); mg.globalAlpha = 1; }
         mg.fillStyle = 'rgba(216,205,180,.14)';
         covered.forEach(k => { const [i, j] = k.split(',').map(Number); mg.fillRect(i * cellW * sx, j * cellH * sy, cellW * sx + .5, cellH * sy + .5); });
         mg.strokeStyle = '#d6685c'; mg.lineWidth = 1; mg.strokeRect(vx * sx, vy * sy, size * sx, size * sy);
@@ -204,11 +202,11 @@ const Blink = (() => {
       canvas.addEventListener('pointerup', e => {
         if (stroke) { const st = stroke; stroke = null; const cx = st.reduce((a, q) => a + q[0], 0) / st.length - vx, cy = st.reduce((a, q) => a + q[1], 0) / st.length - vy; mark(cx, cy, st); return; }
         if (drag && !drag.moved) { const [x, y] = local(e); mark(x, y); } drag = null; });
-      const togglePencil = () => { pencil = !pencil; canvas.style.cursor = pencil ? 'cell' : 'grab'; $('#btn-pencil').classList.toggle('primary', pencil); toast(pencil ? 'Pencil in hand. Draw a ring around a suspect.' : 'Hand: drag to move the plate.', 1500); };
-      $('#btn-pencil').onclick = togglePencil; $('#btn-pencil').classList.add('primary'); canvas.style.cursor = 'cell';
-      const toggleSide = () => { side = !side; canvas.width = side ? size * 2 + 8 : size; canvas.height = size; canvas.style.width = ''; $('#btn-side').classList.toggle('primary', side); if (side) { const maxW = window.innerWidth - 420; if (canvas.width > maxW) canvas.style.width = maxW + 'px'; } };
+      const togglePencil = () => { pencil = !pencil; canvas.style.cursor = pencil ? 'cell' : 'grab'; $('#btn-pencil').classList.toggle('on', pencil); toast(pencil ? 'Pencil in hand. Draw a ring around a suspect.' : 'Hand: drag to move the plate.', 1500); };
+      $('#btn-pencil').onclick = togglePencil; canvas.style.cursor = 'cell';
+      const toggleSide = () => { side = !side; canvas.width = side ? size * 2 + 8 : size; canvas.height = size; canvas.style.width = ''; $('#btn-side').classList.toggle('on', side); if (side) { const maxW = window.innerWidth - 420; if (canvas.width > maxW) canvas.style.width = maxW + 'px'; } };
       $('#btn-side').onclick = toggleSide;
-      const toggleNeg = () => { neg = !neg; canvas.classList.toggle('negative', neg); Prefs.set('negative', neg); };
+      const toggleNeg = () => { neg = !neg; canvas.classList.toggle('negative', neg); $('#btn-neg').classList.toggle('on', neg); Prefs.set('negative', neg); };
       if (Prefs.get('negative')) toggleNeg();
       $('#btn-neg').onclick = toggleNeg;
       $('#btn-leave').onclick = () => { Audio_.stop('amb_search'); Audio_.play('chair_creak', 0.4); finish({ found: false, suspects, minutes: Math.round(elapsed / 60 * 50), note: $('#pair-note').value.trim() }); };

@@ -45,6 +45,16 @@ const Dome3D = (() => {
   }
   // star colour from B-V: blue-white at -0.2, white near 0.4, yellow at 0.8, orange past 1.3. Subtle, as the eye sees it.
   const bvColor = ci => { const t = clamp((ci + 0.2) / 1.7, 0, 1); return [0.78 + 0.22 * t, 0.86 + 0.08 * (1 - Math.abs(t - 0.4) * 1.5), 1.0 - 0.32 * t]; };
+  // clouds painted in horizontal coordinates: thin cirrus as a veil, overcast as a lid
+  function cloudTexture(kind) {
+    const W = 512, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), img = g.createImageData(W, H), px = img.data, seed = Math.random() * 100;
+    for (let j = 0; j < H; j++) { const alt = (j / H - 0.5) * 180; if (alt < -5) continue; const horizon = clamp((alt + 5) / 25, 0, 1);
+      for (let i = 0; i < W; i++) { const x = i / W * 12 + seed, y = j / H * 6 + seed;
+        let n = kind === 'haze' ? 0.5 * vnoise(x * 0.7, y * 2.8) + 0.3 * vnoise(x * 1.6, y * 5) + 0.2 * vnoise(x * 3, y * 9) : fbm(x * 1.2, y * 1.2);
+        let a = kind === 'haze' ? clamp((n - 0.42) * 1.6, 0, 1) * 0.45 : kind === 'cloud' ? clamp((n - 0.25) * 2.2, 0, 1) * 0.92 : 0.97;
+        a *= kind === 'haze' ? 1 : (1 - 0.5 * horizon * 0); const k = (j * W + i) * 4; const v = kind === 'storm' ? 22 : 40 + n * 30; px[k] = v; px[k + 1] = v + 2; px[k + 2] = v + 8; px[k + 3] = Math.round(a * 255); } }
+    g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.flipY = false; t.wrapS = THREE.RepeatWrapping; return t;
+  }
   function pointCloud(items, color, lst, { sizeOf, alphaOf, colorOf }) {
     const pos = [], size = [], alpha = [], cols = [];
     items.forEach(it => { const p = altAz(it.ra, it.dec, lst); const v = dir(p.alt, p.az).multiplyScalar(SKY); pos.push(v.x, v.y, v.z); size.push(sizeOf(it)); alpha.push(alphaOf(it)); const c = colorOf ? colorOf(it) : null; cols.push(...(c || [1, 1, 1])); });
@@ -132,6 +142,7 @@ const Dome3D = (() => {
     scene.add(pointCloud(mw, '#cfd3e0', lst, { sizeOf: () => 2.2, alphaOf: () => 0.12 }));
     const mwSphere = new THREE.Mesh(new THREE.SphereGeometry(SKY - 40, 64, 32), new THREE.MeshBasicMaterial({ map: milkyWayTexture(lst), transparent: true, opacity: 0.55, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending }));
     scene.add(mwSphere);
+    if (opts.weather && opts.weather !== 'clear') { const cl = new THREE.Mesh(new THREE.SphereGeometry(SKY - 60, 64, 32), new THREE.MeshBasicMaterial({ map: cloudTexture(opts.weather), transparent: true, side: THREE.BackSide, depthWrite: false })); scene.add(cl); state.clouds = cl; }
     // ecliptic
     scene.add(skyLine(Array.from({ length: 181 }, (_, i) => { const e = eclRaDec(i * 2); const p = altAz(e.ra, e.dec, lst); return dir(p.alt, p.az).multiplyScalar(SKY - 10); }), '#d6685c', true));
     // nebulae, galaxies and clusters at their catalogue size and place
@@ -225,6 +236,7 @@ const Dome3D = (() => {
     if (renderer.domElement.width !== w || renderer.domElement.height !== h) { renderer.setSize(w, h, false); camera.aspect = w / h; }
     camera.fov = state.fov; camera.updateProjectionMatrix();
     camera.lookAt(dir(state.pitch, state.yaw));
+    if (state.clouds) state.clouds.rotation.y += dt * 0.004;   // the sky drifts
     if (dome) { let d = state.yaw - domeYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); domeYaw += d * 0.04;
       dome.rotation.y = -domeYaw;
       const moving = Math.abs(d) > 0.004; if (moving && !rumbling) { rumbling = true; Audio_.loop('dome_rotate', 0.3, 0.4); } if (!moving && rumbling) { rumbling = false; Audio_.stop('dome_rotate', 0.8); } }

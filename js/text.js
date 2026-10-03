@@ -61,6 +61,13 @@ const TEXT = {
       { q: '“Dr. Slipher, I have found your Planet X.”' }],
     quote: 'That’s it.',
   },
+  // the story of the search, written in the front of the notebook
+  story: [
+    'Percival Lowell built this observatory in 1894 to look at Mars. From 1905 he looked for a ninth planet instead, computing where an unseen mass would have to be to pull Uranus and Neptune the way they are pulled. He called it Planet X and put it near Gemini. He died in 1916 without a plate to show.',
+    'The 13-inch astrograph was finished in 1929 for one purpose: photograph the whole ecliptic, two plates of every field, and compare them under the Zeiss blink comparator. Stars stay. Asteroids jump. A planet far out creeps a few millimetres in a week.',
+    'V. M. Slipher, director, hired a 22-year-old Kansas farm boy on the strength of his planet drawings. The farm boy is you. Exposures are one hour, guided by hand in an unheated dome. Development in the tray by the red lamp. Then the comparator, hundreds of thousands of stars a plate.',
+    'Every plate gets a label on its sleeve, written by hand. A pair is two plates of one field, nights apart. A suspect is a ring in pencil. A third plate decides. Nothing is remembered that is not written here.',
+  ],
   epilogue: [
     { img: ['flagstaff_theatre.jpg', 'rest.jpg'], lines: ['That evening he walks down into Flagstaff and goes to the movies.', 'The following weeks are spent confirming. More plates, more measurements, orbit calculations.', 'The object moves exactly as a distant planet should. Nearly a year of work. Over two million stars compared.'] },
     { img: ['slipher_office.jpg', 'desk.jpg'], lines: ['13 March 1930: Percival Lowell’s birthday, and the anniversary of the discovery of Uranus.', 'Lowell Observatory announces the discovery to the world.', 'More than a thousand name suggestions arrive. Cronus. Minerva. Percival.'] },

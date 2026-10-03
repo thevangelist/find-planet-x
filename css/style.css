@@ -162,11 +162,14 @@ button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); 
 .notebook .entry { margin: 0; }
 .notebook .entry .d { color: #4f4636; font: var(--t-ui); }
 .notebook .entry.plate .d::before { content: '▭ '; color: #8a7f63; }
+.notebook .entry.story { font-style: italic; color: #3a3328; }
+.notebook .entry.important { border-left: 3px solid var(--oxblood); padding-left: 8px; }
+.notebook .page.ribbon::after { content: ''; position: absolute; top: -6px; right: 28px; width: 14px; height: 70px; background: var(--oxblood); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%); }
 .notebook canvas.sk { display: block; width: 100%; height: auto; cursor: cell; touch-action: none; }
 .notebook #lb-sketch { margin-top: 6px; padding: 4px 12px; }
 .notebook textarea { width: 100%; background: transparent; border: none; border-bottom: 1px dashed #8a7f63; font: var(--t-meta); line-height: 28px; color: var(--ink); resize: none; outline: none; padding: 0; }
-.notebook button { color: var(--ink); border-color: #8a7f63; margin-top: 6px; padding: 4px 12px; }
-.notebook button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.notebook button { color: var(--ink); border-color: #8a7f63; margin-top: 6px; padding: 6px 14px; font-size: 16px; }
+.notebook button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); font-size: 16px; padding: 6px 14px; }
 .notebook button.primary:hover { background: #000; border-color: #000; color: #fff; }
 .book-ctl { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 11; display: flex; align-items: center; gap: var(--s2); font: var(--t-meta); color: var(--paper-dim); }
 .book-ctl button { margin: 0; padding: 6px 12px; }
@@ -191,11 +194,15 @@ button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); 
 #blink-side h3 { font: var(--t-label); color: var(--paper-dim); margin: var(--s2) 0 var(--s1); }
 #blink-side #pair-info { color: var(--paper); }
 #blink-side button { display: block; padding: 6px 12px; margin: 4px 0; }
-#blink-side #btn-leave { width: 100%; margin-bottom: var(--s2); }
+#blink-side #btn-leave { width: 100%; margin-top: var(--s3); }
 #blink-side #btn-note { width: 100%; margin-top: 6px; }
+#blink-side .tools { display: flex; gap: 6px; margin: var(--s1) 0; }
+#blink-side .chip { padding: 4px 10px; margin: 0; font: var(--t-meta); color: var(--paper-dim); border-color: var(--line); border-radius: 14px; }
+#blink-side .chip.on { color: var(--ink); background: var(--paper); border-color: var(--paper); }
+#blink-side .legend { font: var(--t-meta); color: var(--paper-dim); margin: var(--s1) 0 var(--s2); }
 #blink-side textarea { width: 100%; font: var(--t-meta); color: var(--paper); background: rgba(216,205,180,.06); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 6px 8px; resize: vertical; outline: none; }
 #blink-side textarea:focus { border-color: var(--accent); }
-#blink-side .hints { margin: var(--s2) 0; line-height: 1.6; color: var(--paper-dim); }
+
 #blink-side .suspect { display: flex; justify-content: space-between; align-items: center; gap: var(--s1); border-bottom: 1px dotted var(--line); padding: 4px 0; }
 #blink-side .suspect span.v { color: var(--paper); }
 #blink-side select.guess { font: var(--t-meta); color: var(--paper); background: #15171a; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 2px 6px; margin: 4px 0; }

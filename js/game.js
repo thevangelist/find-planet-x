@@ -536,7 +536,7 @@ const Game = (() => {
     const onHour = h => { S.clock = Math.max(S.clock, HOUR_CLOCK[h]); tick(0); Dome3D.unmount(); dome(); };
     if (flatPref) { SkyMap.render(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), onPick: pick_, onHour });
       if (Dome3D.available()) { const b = el('button', '', 'Dome view'); b.id = 'to-dome'; b.onclick = () => { Prefs.set('flatChart', false); dome(); }; $('#skymap-wrap .hours').appendChild(b); } }
-    else { const btn = panel.querySelector('.menu button.primary'), sm = btn && btn.querySelector('small');
+    else { const btn = [...panel.querySelectorAll('.menu button')].find(b => b.textContent.startsWith('Expose')), sm = btn && btn.querySelector('small');
       Dome3D.mount(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), hazy: w.state === 'haze', onPick: pick_, onHour, onFlat: () => { Dome3D.unmount(); Prefs.set('flatChart', true); dome(); },
         onPointing: (cur, ok) => { if (!sm) return; const sf = ok && sameField(cur.ra, cur.dec);
           sm.textContent = !ok ? 'Too low. Point above the pines.' : sf ? (Astro.key(sf.t) === Astro.key(S.t) ? `Field of plate No. ${sf.id}, exposed tonight. A pair needs another night.` : `Field of plate No. ${sf.id}, ${Astro.fmtShort(sf.t)}. Same label makes a pair.`) : `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · new field`; btn.disabled = !ok; } }); }
@@ -558,32 +558,29 @@ const Game = (() => {
     chronicle(res.ruined ? TEXT.logAuto.ruined(name) : TEXT.logAuto.exposed(name, res.minutes));
     Audio_.stop('amb_dome', 3); save();
     await wait(1500);
-    if (!res.ruined) await labelPlate(plate);
-    panelScene('walk.jpg', 'Dome', [res.ruined ? 'The plate is ruined. The stars trailed into lines.' : 'The plate is in its holder. The fingers are gone.', 'The night is still long.'],
-      [{ label: 'Develop', primary: !!undeveloped().length, sub: `Develop ${undeveloped().length} plate${undeveloped().length === 1 ? '' : 's'} now, while the dome cools.`, disabled: !undeveloped().length, fn: () => goTo('darkroom') },
-       { label: 'Expose again', sub: dawn() ? 'Dawn is coming.' : `Point somewhere else. It is ${hhmm(S.clock)}.`, disabled: res.ruined || dawn(), fn: dome },
-       { label: 'Sleep', primary: !undeveloped().length, sub: 'Until the afternoon.', fn: () => sleep(1) }], { task: res.ruined ? 'Plate lost.' : dawn() ? 'Dawn. Turn in.' : 'Plate done. The night is long.' });
+    if (res.ruined) return panelScene('walk.jpg', 'Dome', ['The plate is ruined. The stars trailed into lines.'], [{ label: 'Expose again', primary: !dawn(), disabled: dawn(), fn: dome }, { label: 'Sleep', primary: dawn(), sub: 'Until the afternoon.', fn: () => sleep(1) }], { task: 'Plate lost.' });
+    labelPlate(plate);
   }
   // the plate sleeve is labelled by hand; what is written is what the plate will be known by
   function labelPlate(plate) {
-    return new Promise(res => {
-      const twin = sameField(plate.ra, plate.dec);
-      const panel = panelScene('plate_loading.jpg', 'Dome', [`The setting circles read <b>${Astro.fieldStr(plate.ra, plate.dec)}</b>. Write the label on the plate sleeve.`,
-        twin ? `The field of plate No. ${twin.id}, labelled ${Astro.fieldStr(twin.label.ra, twin.label.dec)}. Same label, same pair.` : 'One plate finds nothing. Expose this field again on another night, within two weeks, with the same label.'],
-        [], { region: Astro.fieldStr(plate.ra, plate.dec), task: 'Write the label on the sleeve.' });
-      $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden');
-      const twinL = twin ? twin.label : null, pre = { ra: Astro.raStr(twinL ? twinL.ra : plate.ra), dec: Astro.decStr(twinL ? twinL.dec : plate.dec).replace('−', '-') };
-      const form = el('div', 'label-form', `<label>RA <input id="lb-ra" value="${pre.ra}" autocomplete="off"></label><label>Dec <input id="lb-dec" value="${pre.dec}" autocomplete="off"></label>`);
-      panel.insertBefore(form, panel.querySelector('.menu'));
-      const menu = panel.querySelector('.menu');
-      const write = el('button', 'primary', 'Label'); const skip = el('button', '', 'Leave it unlabelled<small>Nobody will know what it shows.</small>');
-      menu.appendChild(write); menu.appendChild(skip);
-      const ra = $('#lb-ra'), dec = $('#lb-dec'); ra.focus(); ra.select();
-      const submit = () => { const r = Astro.parseRA(ra.value), d = Astro.parseDec(dec.value); if (r == null || d == null) { toast('Write RA as hours and minutes, Dec as degrees.', 2500); return; }
-        plate.label = { ra: r, dec: d }; S.lastNote = S.t; Audio_.play('pencil_write', 0.5); tick(5); chronicle(`Plate ${plate.id}: ${Astro.fieldStr(r, d)} written on the sleeve.`); save(); res(); };
-      write.onclick = submit; [ra, dec].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
-      skip.onclick = () => { chronicle(`Plate ${plate.id} went into the rack without a label.`); save(); res(); };
-    });
+    const twin = sameField(plate.ra, plate.dec), und = undeveloped().length;
+    const panel = panelScene('plate_loading.jpg', 'Dome', [`The setting circles read <b>${Astro.fieldStr(plate.ra, plate.dec)}</b>.`,
+      twin ? `The field of plate No. ${twin.id}, labelled ${Astro.fieldStr(twin.label.ra, twin.label.dec)}. Same label, same pair.` : 'One plate finds nothing. Expose this field again on another night, within two weeks, with the same label.'],
+      [], { task: `Label plate No. ${plate.id}.` });
+    $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden');
+    const twinL = twin ? twin.label : null, pre = { ra: Astro.raStr(twinL ? twinL.ra : plate.ra), dec: Astro.decStr(twinL ? twinL.dec : plate.dec).replace('−', '-') };
+    const form = el('div', 'label-form', `<label>RA <input id="lb-ra" value="${pre.ra}" autocomplete="off"></label><label>Dec <input id="lb-dec" value="${pre.dec}" autocomplete="off"></label>`);
+    panel.insertBefore(form, panel.querySelector('.menu'));
+    const menu = panel.querySelector('.menu');
+    const again = el('button', dawn() ? '' : 'primary', `Label, expose again<small>${dawn() ? 'Dawn is coming.' : `It is ${hhmm(S.clock)}. The night is long.`}</small>`); again.disabled = dawn();
+    const dev = el('button', dawn() ? 'primary' : '', `Label, develop<small>${und} plate${und === 1 ? '' : 's'} to the darkroom.</small>`);
+    menu.appendChild(again); menu.appendChild(dev);
+    const ra = $('#lb-ra'), dec = $('#lb-dec'); ra.focus(); ra.select();
+    const write = () => { const r = Astro.parseRA(ra.value), d = Astro.parseDec(dec.value); if (r == null || d == null) { toast('Write RA as hours and minutes, Dec as degrees.', 2500); return false; }
+      plate.label = { ra: r, dec: d }; S.lastNote = S.t; Audio_.play('pencil_write', 0.5); tick(5); save(); return true; };
+    again.onclick = () => { if (write()) dome(); };
+    dev.onclick = () => { if (write()) goTo('darkroom'); };
+    [ra, dec].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') (dawn() ? dev : again).click(); }));
   }
 
   // ---------- discovery & epilogue ----------

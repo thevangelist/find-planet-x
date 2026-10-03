@@ -60,11 +60,11 @@ const Sky = (() => {
   const sprites = {};
   function sprite(mag) {
     const k = Math.round(mag * 2) / 2; if (sprites[k]) return sprites[k];
-    const r = clamp(Math.pow(2, (10.5 - k) / 2.0) * 1.0, 1.25, 46);
+    const r = clamp(0.6 + Math.pow(2, (10.5 - k) / 1.7) * 1.1, 1.0, 64);
     const size = Math.ceil(r * 2 + 4), c = document.createElement('canvas'); c.width = c.height = size;
     const g = c.getContext('2d'), cx = size / 2;
     const grad = g.createRadialGradient(cx, cx, 0, cx, cx, r + 1);
-    const core = clamp((17.8 - k) / 5.0, 0.16, 0.82);
+    const core = clamp((18.6 - k) / 4.2, 0.08, 0.9);
     const tint = ((k * 7.3) % 1) - 0.5, wr = Math.round(6 * tint), wb = -Math.round(6 * tint);
     grad.addColorStop(0, `rgba(${222 + wr},219,${210 + wb},${core})`); grad.addColorStop(0.45, `rgba(${212 + wr},208,${200 + wb},${core * 0.6})`); grad.addColorStop(0.8, `rgba(200,197,190,${core * 0.18})`);
     grad.addColorStop(1, 'rgba(220,218,210,0)');
@@ -145,7 +145,7 @@ const Sky = (() => {
         const s = sprite(m + soft); g.drawImage(s.c, stars[i * 3] + off.x - s.size / 2, stars[i * 3 + 1] + off.y - s.size / 2);
       }
       named.forEach(n => { const s = sprite(n.mag); g.drawImage(s.c, n.x + off.x - s.size / 2, n.y + off.y - s.size / 2);
-        if (n.mag < 6.5) { const rad = s.r * (2.2 + (6.5 - n.mag) * 0.35); g.strokeStyle = `rgba(225,222,215,${0.05 + (6.5 - n.mag) * 0.03})`; g.lineWidth = Math.max(1.5, rad * 0.12); g.beginPath(); g.arc(n.x + off.x, n.y + off.y, rad, 0, 7); g.stroke(); } });
+        if (n.mag < 5) { const rad = s.r * 2.6, gr = g.createRadialGradient(n.x + off.x, n.y + off.y, s.r * 0.8, n.x + off.x, n.y + off.y, rad); gr.addColorStop(0, `rgba(225,222,215,${0.12 + (5 - n.mag) * 0.03})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(n.x + off.x, n.y + off.y, rad, 0, 7); g.fill(); } });
       DSO.forEach(o => { const mm = project(spec.center, o[0] * 15, o[1]).mm; if (Math.abs(mm.x) < PLATE_W_MM / 2 + 30 && Math.abs(mm.y) < PLATE_H_MM / 2 + 30) { const p = mmToPx(mm); drawDSO(g, { x: p.x + off.x, y: p.y + off.y }, o, rng(hashStr(spec.seed + o[7])), soft); } });
       movers.forEach(m => {
         if (m.kind === 'defect') { if (m.plate !== idx) return; const p = mmToPx(m); g.fillStyle = 'rgba(210,205,195,.55)'; g.beginPath(); g.ellipse(p.x, p.y, 2.5, 1.2, rr() * 3, 0, 7); g.fill(); return; }
