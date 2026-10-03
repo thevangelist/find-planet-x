@@ -161,7 +161,7 @@ const Sky = (() => {
       const rowOff = new Float32Array(H); for (let y = 0; y < H; y++) rowOff[y] = (gr2() - 0.5) * 3 + (y % 7 === 0 ? (gr2() - 0.5) * 4 : 0);
       for (let y = 0; y < H; y++) { const ro = rowOff[y]; for (let x = 0; x < W; x++) { const i = (y * W + x) * 4, n = (gr2() - 0.5) * 14 + ro; d[i] += n; d[i + 1] += n; d[i + 2] += n; } }
       // clumpy grain on top of the fine grain
-      for (let k = 0; k < 90000; k++) { const x = Math.floor(gr2() * (W - 1)), y = Math.floor(gr2() * (H - 1)), n = (gr2() - 0.5) * 16; [0, 1, W, W + 1].forEach(o => { const i = ((y * W + x) + o) * 4; d[i] += n; d[i + 1] += n; d[i + 2] += n; }); }
+      for (let k = 0; k < 30000; k++) { const x = Math.floor(gr2() * (W - 1)), y = Math.floor(gr2() * (H - 1)), n = (gr2() - 0.5) * 9; [0, 1, W, W + 1].forEach(o => { const i = ((y * W + x) + o) * 4; d[i] += n; d[i + 1] += n; d[i + 2] += n; }); }
       // emulsion pinholes and dust: single bright points and small dark specks
       for (let k = 0; k < 140; k++) { const i = (Math.floor(gr2() * H) * W + Math.floor(gr2() * W)) * 4; d[i] = d[i + 1] = d[i + 2] = 200 + gr2() * 55; }
       for (let k = 0; k < 400; k++) { const x = Math.floor(gr2() * (W - 2)), y = Math.floor(gr2() * (H - 2)); [0, 1, W].forEach(o => { const i = ((y * W + x) + o) * 4; d[i] *= 0.5; d[i + 1] *= 0.5; d[i + 2] *= 0.5; }); }

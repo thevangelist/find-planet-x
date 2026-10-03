@@ -2,6 +2,7 @@
 // The Zeiss blink comparator: the central mechanic.
 const Blink = (() => {
   const MM = Sky.PX_PER_MM;
+  let active = null;
 
   function run(opts) {
     // opts: { spec, dates:[a,b], regionName, thirdPlate:boolean, focus:number, onFocus(fn), tutorial }
@@ -21,6 +22,7 @@ const Blink = (() => {
             <div id="suspects"><span style="opacity:.5">No marks.</span></div>
             <h3>Note on this pair</h3>
             <textarea id="pair-note" rows="3" placeholder="free text, goes in the notebook"></textarea>
+            <button id="btn-note">Save note to the notebook</button>
             <h3>&nbsp;</h3>
             <button id="btn-side">Side by side &nbsp;<span class="kbd">B</span></button>
             <button id="btn-pencil">Pencil / hand &nbsp;<span class="kbd">P</span></button>
@@ -95,7 +97,7 @@ const Blink = (() => {
         renderSuspects();
       }
       async function discovery(s) {
-        running = false; hold = true;
+        running = false;
         Audio_.stop('amb_search', 4);
         // centre the view on it, blink a few more times slowly, then silence
         const p = Sky.mmToPx(s.m); vx = p.x - size / 2; vy = p.y - size / 2;
@@ -110,6 +112,7 @@ const Blink = (() => {
       }
       const packStroke = st => st ? st.filter((q, i) => i % 2 === 0 || i === st.length - 1).map(q => [Math.round(q[0] - Sky.W / 2), Math.round(q[1] - Sky.H / 2)]) : null;
       function finish(res) {
+        active = null;
         res.suspects = res.suspects.map(s => ({ x: s.x, y: s.y, kind: s.kind, verdict: s.verdict, find: s.find || null, stroke: packStroke(s.stroke) }));
         running = false; window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku);
         window.removeEventListener('resize', onResize); resolve({ ...res, focus });
@@ -206,8 +209,10 @@ const Blink = (() => {
       $('#btn-neg').onclick = toggleNeg;
       $('#btn-leave').onclick = () => { Audio_.stop('amb_search'); Audio_.play('chair_creak', 0.4); finish({ found: false, suspects, minutes: Math.round(elapsed / 60 * 50), note: $('#pair-note').value.trim() }); };
       if (opts.note) $('#pair-note').value = opts.note;
+      $('#btn-note').onclick = () => { const v = $('#pair-note').value.trim(); if (!v) return; Audio_.play('pencil_write', 0.5); opts.onNote && opts.onNote(v); toast('Written in the notebook.', 1800); };
+      active = { leave: () => $('#btn-leave').click() };
       const onResize = () => {}; window.addEventListener('resize', onResize);
     });
   }
-  return { run };
+  return { run, abort: () => { if (active) active.leave(); }, get active() { return !!active; } };
 })();

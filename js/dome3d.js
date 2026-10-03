@@ -226,7 +226,10 @@ const Dome3D = (() => {
     window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKeyUp);
     render();
   }
-  function unmount() { if (raf) cancelAnimationFrame(raf); raf = null; if (onKeyUp) window.removeEventListener('keyup', onKeyUp); if (rumbling) { rumbling = false; Audio_.stop('dome_rotate', 0.5); } dome = null; if (onKey) window.removeEventListener('keydown', onKey); if (renderer) { renderer.dispose(); renderer = null; } }
+  // free every geometry, material and texture, or the GPU fills up after a few nights
+  function unmount() { if (raf) cancelAnimationFrame(raf); raf = null; if (onKeyUp) window.removeEventListener('keyup', onKeyUp); if (onKey) window.removeEventListener('keydown', onKey); if (rumbling) { rumbling = false; Audio_.stop('dome_rotate', 0.5); } dome = null;
+    if (scene) { scene.traverse(o => { if (o.geometry) o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; ms.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); }); scene = null; }
+    if (renderer) { renderer.dispose(); if (renderer.domElement.parentElement) renderer.domElement.parentElement.remove(); renderer = null; } state = null; }
   function slewTo(ra, dec) { if (!state) return; const p = altAz(ra, dec, state.lst); state.target = { alt: p.alt, az: p.az }; }
   // test hook: sample the painted band at a sky position
   function mwSample(raH, decDeg) { if (!lastMW || !state) return null; const p = altAz(raH, decDeg, state.lst); const u = ((270 - p.az / R) / 360 % 1 + 1) % 1, v = p.alt / Math.PI + 0.5; return lastMW.getContext('2d').getImageData(Math.floor(u * 1024), Math.floor(v * 512), 1, 1).data[3]; }

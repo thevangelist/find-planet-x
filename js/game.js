@@ -41,7 +41,7 @@ const Game = (() => {
     chronicle(where === 'dome' ? 'Fell asleep at the eyepiece. Woke stiff and frozen; the plate is fogged.' : where === 'comparator' ? 'Fell asleep over the comparator. The lamp was still on in the morning.' : 'Fell asleep in the chair with my boots on.');
     Dome3D.unmount(); Audio_.stopAll(2);
     panelScene('rest.jpg', 'Mars Hill', [where === 'dome' ? 'The cold does the rest. He wakes at the eyepiece with the slit open and grey in the east.' : 'His head goes down on the desk. The clock in the corridor keeps on.', 'The next morning starts late and badly.'],
-      [{ label: 'Wake up', primary: true, fn: () => { S.t += Astro.DAY * (late ? 1 : 1); S.clock = 600; S.energy = 0.55; S.focus = 0.4; S.loc = 'room'; save(); goTo('room'); } }], { task: 'Exhausted. He sleeps where he sits.' });
+      [{ label: 'Wake up', primary: true, fn: () => { S.t += Astro.DAY; S.clock = 600; S.energy = 0.55; S.focus = 0.4; save(); goTo('observatory'); } }], { task: 'Exhausted. He sleeps where he sits.' });
   }
   const hideHud = () => { $('#hud').classList.add('hidden'); $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden'); $('#flow').classList.add('hidden'); };
   const regionOf = id => Astro.REGIONS.find(r => r.id === id);
@@ -66,7 +66,7 @@ const Game = (() => {
       const sl = list[si];
       const root = scene(); root.innerHTML = '';
       const pic = el('div', 'picture slow-fade' + (sl.fit === 'contain' ? ' contain' : sl.dark || !sl.img ? ' dim' : ' ken'));
-      if (skip) { const sb = el('button', '', skip); sb.id = 'skip-intro'; sb.onclick = () => { skipped = true; skipResolve && skipResolve('skip'); }; root.appendChild(sb); }
+      if (skip) { const sb = el('button', 'primary', skip); sb.id = 'skip-intro'; sb.onclick = () => { skipped = true; skipResolve && skipResolve('skip'); }; root.appendChild(sb); }
       const imgs = Array.isArray(sl.img) ? sl.img : [sl.img];
       const img = await firstImage(imgs);
       if (img) pic.style.backgroundImage = `url(assets/img/${img})`; else pic.style.background = '#050506';
@@ -194,14 +194,18 @@ const Game = (() => {
   }
 
   // ---------- day loop: free movement between the places on Mars Hill ----------
-  const LOCS = [['room', 'Home'], ['darkroom', 'Darkroom'], ['observatory', 'Observatory'], ['logbook', 'Notebook'], ['calendar', 'Calendar']];
-  const locOf = l => l === 'comparator' || l === 'dome' ? 'observatory' : l === 'status' ? 'room' : l;
+  const LOCS = [['darkroom', 'Darkroom'], ['observatory', 'Observatory'], ['logbook', 'Notebook'], ['calendar', 'Calendar']];
+  const locOf = l => l === 'comparator' || l === 'dome' || l === 'status' || l === 'room' ? 'observatory' : l;
   const phaseOf = clock => clock < 720 ? 'morning' : clock < 1140 ? 'afternoon' : 'evening';
   const isDark = () => S.clock >= 1140, dawn = () => S.clock >= 1680;
   const HOUR_CLOCK = { 21: 1260, 23: 1380, 1: 1500, 3: 1620 }, hourOf = c => c < 1320 ? 21 : c < 1440 ? 23 : c < 1560 ? 1 : 3;
   function nav() {
     const n = $('#hud-nav'); n.innerHTML = ''; n.classList.remove('hidden');
     LOCS.forEach(([id, name]) => { const b = el('button', id === locOf(S.loc) ? 'on' : '', name); b.onclick = () => goTo(id); n.appendChild(b); });
+    // the two things he does besides the work
+    const today = Astro.key(S.t);
+    const cof = el('button', 'quick', 'Coffee'); cof.title = 'Sharp for ninety minutes, then a dip. 20 min.'; cof.onclick = () => { Audio_.play('coffee_pour', 0.5); S.focus = clamp(S.focus + 0.35, 0, 1); S.coffeeAt = S.clock; if (S.ate !== today) { S.ate = today; S.energy = clamp(S.energy + 0.12, 0, 1); } tick(20); toast('Coffee and bread at the stove. Sharp for an hour or so.', 2500); save(); hud($('#hud-place').textContent); }; n.appendChild(cof);
+    const bed = el('button', 'quick', 'Turn in'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; n.appendChild(bed);
     flow();
   }
   // Order of the programme: plates without labels, a backlog of unexamined pairs, suspects never checked,
@@ -225,7 +229,7 @@ const Game = (() => {
     ];
     steps.forEach(([name, sub, now, warn], i) => { if (i) f.appendChild(el('span', 'arrow', '·')); f.appendChild(el('span', 'step' + (now ? ' now' : '') + (warn ? ' warn' : ''), `<b>${name}</b> ${sub}`)); });
   }
-  function goTo(loc) { Dome3D.unmount(); S.loc = loc; S.phase = phaseOf(S.clock); save(); ({ room, darkroom, comparator, dome, logbook, status, observatory, calendar })[loc](); }
+  function goTo(loc) { if (Blink.active) { Blink.abort(); return setTimeout(() => goTo(loc), 60); } Dome3D.unmount(); S.loc = loc; S.phase = phaseOf(S.clock); save(); ({ room: observatory, darkroom, comparator, dome, logbook, status: observatory, observatory, calendar })[loc](); }
   // the observatory is the comparator by day and the dome by night
   function observatory() { const w = Astro.weather(S.t, hourOf(Math.max(S.clock, 1260))); if (isDark() && w.ok && Astro.moonDark(S.t) && !(unblinked().length && S.focus >= 0.3 && S.clock < 1260)) return goTo('dome'); goTo('comparator'); }
   // the observatory: whatever is next in the pipeline
@@ -324,7 +328,8 @@ const Game = (() => {
       const wrap = el('div', 'dev-wrap'); root.appendChild(wrap);
       const cv = el('canvas'); cv.width = 420; cv.height = 340; wrap.appendChild(cv);
       const meter = el('div', 'dev-meter', '<i></i><b></b>'); wrap.appendChild(meter);
-      const info = el('div', 'dev-info', `<h2 class="task">Pull the plate when it is right.</h2><p>Plate ${n} of ${of}: ${plateName(plate)}. The stars come up slowly. The faint ones last.</p>`); wrap.appendChild(info);
+      const zones = el('div', 'dev-zones', '<span>thin</span><span>right</span><span>fogged</span>'); wrap.appendChild(zones);
+      const info = el('div', 'dev-info', `<h2 class="task">Watch the plate come up. Pull it when the marker is in the middle.</h2><p>Plate ${n} of ${of}: ${plateName(plate)}. Bright stars first, the faint ones last. Left too long, the whole plate goes grey.</p>`); wrap.appendChild(info);
       const btn = el('button', 'primary', 'Pull the plate &nbsp;<span class="kbd">space</span>'); wrap.appendChild(btn);
       const g = cv.getContext('2d'), r = rng(hashStr('dev' + plate.id));
       const stars = Array.from({ length: 260 }, () => ({ x: r() * 420, y: r() * 340, m: r() }));
@@ -334,10 +339,10 @@ const Game = (() => {
         stars.forEach(s => { const vis = clamp((d - s.m * 70) / 25, 0, 1); if (vis <= 0) return; const a = vis * (0.35 + (1 - s.m) * 0.6); g.fillStyle = `rgba(230,225,215,${a})`; const sz = 1 + (1 - s.m) * 2.5 * vis; g.fillRect(s.x, s.y, sz, sz); });
         if (d > 80) { g.fillStyle = `rgba(200,195,185,${(d - 80) / 60})`; g.fillRect(0, 0, 420, 340); }
         meter.querySelector('i').style.width = `${d}%`; meter.querySelector('b').style.left = `${d}%`; };
-      const loop = now => { if (done) return; d = Math.min(100, (now - t0) / 70); draw(); if (d >= 100) finish(); else requestAnimationFrame(loop); };
+      const loop = now => { if (done) return; d = Math.min(100, (now - t0) / 180); draw(); if (d >= 100) finish(); else requestAnimationFrame(loop); };
       function finish() { done = true; window.removeEventListener('keydown', kd); Audio_.play('water_slosh', 0.4);
         const q = d < 50 ? 'thin' : d <= 80 ? 'good' : 'fogged';
-        toast(q === 'good' ? 'Pulled right. Into the fixer.' : q === 'thin' ? 'Pulled early. The plate is thin; the faint stars never came up.' : 'Too long in the bath. The plate fogged.', 3000);
+        toast(q === 'good' ? 'Pulled right. Into the fixer.' : q === 'thin' ? 'Pulled early. A thin plate; the faint stars never came up.' : 'Too long in the bath. The plate fogged.', 3500);
         setTimeout(() => res(q), 1400); }
       const kd = e => { if (e.key === ' ') { e.preventDefault(); finish(); } };
       window.addEventListener('keydown', kd); btn.onclick = finish;
@@ -361,19 +366,24 @@ const Game = (() => {
         else { const q = same[0], n = Math.abs(Math.round((q.t - p.t) / Astro.DAY)); lines.push(`No. ${p.id} and No. ${q.id}: ${n < 1 ? 'the same night. Another night is needed.' : n > 14 ? `${n} nights apart. Too long.` : 'the star fields differ. A label is wrong.'}`); } }); }
     const unl = S.plates.filter(p => !p.label && !p.ruined).length; if (unl) lines.push(`${unl} plate${unl > 1 ? 's' : ''} without a label. Nobody knows what they show.`);
     if (S.focus < 0.12) lines.push('The eyes are done. Rest first.');
-    acts.push({ label: 'Up to the dome', sub: isDark() ? 'The sky is open.' : 'Daylight up there.', primary: !acts.some(a => a.primary) && isDark(), fn: () => goTo('dome') });
+    const w = Astro.weather(S.t, 23), can = w.ok && Astro.moonDark(S.t);
+    acts.push({ label: isDark() ? 'Dome' : 'Wait for dark', sub: isDark() ? 'Expose plates.' : can ? 'Clear tonight. The dome at dusk.' : 'No plates tonight.', primary: !acts.some(a => a.primary) && (isDark() || can), fn: () => { if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo(can || isDark() ? 'dome' : 'comparator'); } });
+    if (!ub.length && !can) acts.push({ label: 'Turn in', sub: 'Nothing waits. Sleep to the next clear night.', primary: !acts.some(a => a.primary), fn: () => sleep(1) });
+    if (!isDark() && !ub.length && can) lines.push(`Tonight: ${wxLine(S.t, 23)} Moon ${Math.round(Astro.moonIllum(S.t) * 100)} %.`);
     panelScene('comparator.jpg', 'Comparator room', lines, acts, { task: ub.length ? `Blink ${ub.length} pair${ub.length > 1 ? 's' : ''}.` : S.focus < 0.12 ? 'Eyes done. Rest.' : 'No pairs to blink.' });
   }
   async function blink(pr) {
     const reg = { name: pairName(pr) };
-    hud('Blink comparator', reg.name, `${Astro.fmtShort(pr.a.t)} to ${Astro.fmtShort(pr.b.t)}`); $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden');
+    hud('Comparator'); nav(); $('#flow').classList.add('hidden');
     Audio_.play('glass_plate_set', 0.5);
     live = false;
     const res = await Blink.run({ spec: specFor(pr), dates: [Astro.fmtShort(pr.a.t), Astro.fmtShort(pr.b.t)], regionName: reg.name, thirdPlate: pr.third, focus: S.focus,
       restore: S.suspects.filter(s => s.pair === pr.key), note: (S.pairNotes || {})[pr.key] || '',
+      onNote: v => { S.pairNotes ??= {}; if (v !== S.pairNotes[pr.key]) { S.pairNotes[pr.key] = v; addLog(`${reg.name}, ${Astro.fmtShort(pr.a.t)} / ${Astro.fmtShort(pr.b.t)}: ${v}`); S.lastNote = S.t; save(); } },
       onTick: (sec, f) => { $('#hud-focus').textContent = 'concentration: ' + (f > .66 ? 'good' : f > .33 ? 'fair' : 'poor'); } });
     live = true; S.focus = res.focus; S.sessions++; tick(res.minutes + 10);
-    S.pairNotes ??= {}; if (res.note && res.note !== S.pairNotes[pr.key]) { S.pairNotes[pr.key] = res.note; addLog(`${reg.name}, ${Astro.fmtShort(pr.a.t)} / ${Astro.fmtShort(pr.b.t)}: ${res.note}`); S.lastNote = S.t; } const out = S.energy - res.minutes / 50 * 0.12 <= 0.05;
+    S.pairNotes ??= {}; if (res.note && res.note !== S.pairNotes[pr.key]) { S.pairNotes[pr.key] = res.note; addLog(`${reg.name}, ${Astro.fmtShort(pr.a.t)} / ${Astro.fmtShort(pr.b.t)}: ${res.note}`); S.lastNote = S.t; }
+    if (S.loc !== 'comparator') { save(); return; }   // left through the location bar const out = S.energy - res.minutes / 50 * 0.12 <= 0.05;
     const before = S.suspects.filter(s => s.pair === pr.key);
     S.suspects = S.suspects.filter(s => s.pair !== pr.key).concat(res.suspects.map(s => ({ pair: pr.key, ...s })));
     res.suspects.forEach(s => { const old = before.find(o => Math.abs(o.x - s.x) < 0.01 && Math.abs(o.y - s.y) < 0.01);
@@ -396,7 +406,7 @@ const Game = (() => {
     const o = order();
     if (o.label === 'chaos') { const unl = S.plates.filter(p => !p.label && !p.ruined); if (unl.length && Math.random() < 0.5) { const lost = unl[Math.floor(Math.random() * unl.length)]; lost.ruined = true; chronicle(`An unlabelled plate is gone from the rack. Someone has filed it, or used it. Plate ${lost.id}, whatever it was.`); }
       else chronicle('Slipher stopped at the door and looked at the rack for a while. He said nothing. He did not need to.'); S.focus = clamp(S.focus - 0.2, 0, 1); }
-    else if (o.label === 'slipping' && Math.random() < 0.4) chronicle('Plates in the rack, pairs on the table, nothing written down. It is getting away from me.'); S.t += Astro.DAY * days; S.clock = short ? 900 : 780; S.energy = clamp(S.energy + (short ? 0.7 : 0.95), 0, 1); S.focus = clamp(S.focus + 0.6, 0, 1); S.hour = 23; S.coffeeAt = null; goTo('room'); }
+    else if (o.label === 'slipping' && Math.random() < 0.4) chronicle('Plates in the rack, pairs on the table, nothing written down. It is getting away from me.'); S.t += Astro.DAY * days; S.clock = short ? 900 : 780; S.energy = clamp(S.energy + (short ? 0.7 : 0.95), 0, 1); S.focus = clamp(S.focus + 0.6, 0, 1); S.hour = 23; S.coffeeAt = null; goTo('observatory'); }
   async function waitForNight() {
     let n = 0; let t = S.t;
     do { t += Astro.DAY; n++; } while (!(Astro.weather(t, 23).ok && Astro.moonDark(t)) && n < 30);
@@ -497,15 +507,15 @@ const Game = (() => {
     if (dawn()) return panelScene('walk.jpg', 'Dome', ['Grey in the east. The stars are going.'], [{ label: 'Turn in', primary: true, sub: 'He sleeps until the afternoon.', fn: () => sleep(1) }], { task: 'Dawn. Shut the slit.' });
     S.hour = isDark() ? hourOf(S.clock) : 21;
     const w = Astro.weather(S.t, S.hour), dark = Astro.moonDark(S.t);
-    if (!isDark()) return panelScene('walk.jpg', 'Dome', ['Daylight. The slit is shut, the tube covered.', `Tonight: ${wxLine(S.t, 23)}`], [{ label: 'Wait for dark', sub: 'Up here, in the cold.', primary: true, fn: () => { S.clock = Math.max(S.clock, 1155); tick(0); dome(); } }, { label: 'Down to the comparator', fn: () => goTo('comparator') }], { task: 'Nothing to expose until dark.' });
+    if (!isDark()) return panelScene('walk.jpg', 'Dome', ['Daylight. The slit is shut, the tube covered.', `Tonight: ${wxLine(S.t, 23)}`], [{ label: 'Wait for dark', sub: 'Up here, in the cold.', primary: true, fn: () => { S.clock = Math.max(S.clock, 1155); tick(0); dome(); } }, { label: 'Comparator room', sub: 'Blink the plate pairs.', fn: () => goTo('comparator') }], { task: 'Nothing to expose until dark.' });
     const flatPref = Prefs.get('flatChart') || !Dome3D.available();
     const prs = pairs(); const labelled = S.plates.filter(p => !p.ruined).map(p => { const pr = prs.find(x => x.a === p || x.b === p); return { ra: p.ra, dec: p.dec, id: p.id, labelled: !!p.label, paired: !!pr, partner: pr ? (pr.a === p ? pr.b.id : pr.a.id) : null }; });
     const note = !w.ok ? `${wxLine(S.t, S.hour)} Nothing to expose.` : !dark ? 'The moon lights the sky. Faint objects drown in it.' : '';
     const panel = panelScene('plate_loading.jpg', 'Dome', [`${Astro.tempC(S.t)} °C. ${wxLine(S.t, S.hour)}`, note || 'Every frame is a plate you exposed. Red ones have labels. Double frames are pairs.'],
       note ? [{ label: 'Go home', primary: true, sub: unblinked().length || undeveloped().length ? 'Sleep. Tomorrow, the darkroom and the comparator.' : 'Sleep until the next clear, dark evening.', fn: () => sleep(1) },
-              { label: 'Down to the comparator', sub: unblinked().length ? 'Pairs are waiting.' : 'Nothing there tonight.', fn: () => goTo('comparator') }]
+              { label: 'Comparator room', sub: unblinked().length ? 'Pairs are waiting.' : 'Nothing there tonight.', fn: () => goTo('comparator') }]
            : [{ label: flatPref ? 'Click a field on the chart' : 'Expose here', primary: true, sub: flatPref ? 'One frame is one plate.' : 'Turn the telescope first.', disabled: flatPref, fn: () => Dome3D.pick() },
-              { label: 'Down to the comparator', fn: () => goTo('comparator') }], { region: 'ecliptic', task: note ? 'No exposures tonight.' : flatPref ? 'Pick a field on the chart.' : 'Turn the telescope, then expose.' });
+              { label: 'Comparator room', sub: 'Blink the plate pairs.', fn: () => goTo('comparator') }], { region: 'ecliptic', task: note ? 'No exposures tonight.' : flatPref ? 'Pick a field on the chart.' : 'Turn the telescope, then expose.' });
     if (note) { if (!w.ok && Astro.weather(S.t, 2).ok && dark && S.hour < 12 === false) panel.querySelector('.menu').prepend(Object.assign(el('button', 'primary', 'Wait for it to clear<small>It may open up after midnight.</small>'), { onclick: () => { S.clock = Math.max(S.clock, HOUR_CLOCK[1]); tick(0); dome(); } })); return; }
     panel.style.maxWidth = '380px'; if (!flatPref) panel.parentElement.classList.add('dome-room');
     const pick_ = (ra, dec) => { Dome3D.unmount(); expose(ra, dec); };
@@ -535,9 +545,9 @@ const Game = (() => {
     await wait(1500);
     if (!res.ruined) await labelPlate(plate);
     panelScene('walk.jpg', 'Dome', [res.ruined ? 'The plate is ruined. The stars trailed into lines.' : 'The plate is in its holder. The fingers are gone.', 'The night is still long.'],
-      [{ label: 'Another exposure', primary: !res.ruined && !dawn(), sub: dawn() ? 'Dawn is coming.' : `Point somewhere else. It is ${hhmm(S.clock)}.`, disabled: res.ruined || dawn(), fn: dome },
-       { label: 'To the darkroom', sub: `Develop tonight's ${undeveloped().length} plate${undeveloped().length === 1 ? '' : 's'} now.`, disabled: !undeveloped().length, fn: () => goTo('darkroom') },
-       { label: 'Turn in', primary: res.ruined || dawn(), sub: 'Sleep until the afternoon. The plates wait in the darkroom.', fn: () => sleep(1) }], { task: res.ruined ? 'Plate lost.' : dawn() ? 'Dawn. Turn in.' : 'Plate done. The night is long.' });
+      [{ label: 'To the darkroom', primary: !!undeveloped().length, sub: `Develop ${undeveloped().length} plate${undeveloped().length === 1 ? '' : 's'} now, while the dome cools.`, disabled: !undeveloped().length, fn: () => goTo('darkroom') },
+       { label: 'Another exposure', sub: dawn() ? 'Dawn is coming.' : `Point somewhere else. It is ${hhmm(S.clock)}.`, disabled: res.ruined || dawn(), fn: dome },
+       { label: 'Turn in', primary: !undeveloped().length, sub: 'Sleep until the afternoon.', fn: () => sleep(1) }], { task: res.ruined ? 'Plate lost.' : dawn() ? 'Dawn. Turn in.' : 'Plate done. The night is long.' });
   }
   // the plate sleeve is labelled by hand; what is written is what the plate will be known by
   function labelPlate(plate) {
