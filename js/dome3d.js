@@ -132,6 +132,8 @@ const Dome3D = (() => {
       const key = `${p.ra.toFixed(1)}|${p.dec.toFixed(0)}`; if (drawn.has(key)) return; drawn.add(key);
       const a = altAz(p.ra, p.dec, lst), txt = !p.labelled ? `No. ${p.id}, no label` : p.paired ? `No. ${Math.min(p.id, p.partner)} + ${Math.max(p.id, p.partner)}, pair` : `No. ${p.id}`;
       const s = labelSprite(txt, p.labelled ? '#e6dcc4' : '#8d8578', false); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 25)); s.scale.set(200, 50, 1); scene.add(s); });
+    // the player's own notes with a position
+    (opts.pins || []).forEach(n => { const a = altAz(n.ra, n.dec, lst); if (a.alt < -0.1) return; const s = labelSprite(n.text, '#d8cdb4'); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 30)); s.scale.set(260, 65, 1); scene.add(s); });
     // ground, pines, buildings
     const ground = new THREE.Mesh(new THREE.CircleGeometry(1200, 48), new THREE.MeshBasicMaterial({ color: '#0c0e16' })); ground.rotation.x = -Math.PI / 2; ground.position.y = -3; scene.add(ground);
     const pines = new THREE.Mesh(new THREE.CylinderGeometry(300, 300, 70, 96, 1, true), new THREE.MeshBasicMaterial({ map: pineTexture(), transparent: true, side: THREE.BackSide, depthWrite: false })); pines.position.y = 32; scene.add(pines);

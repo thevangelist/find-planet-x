@@ -45,7 +45,7 @@ const Astro = (() => {
 
   // Weather: a slow pressure-like random walk, thresholded by Flagstaff's monthly clear-night fraction.
   // Dry May–June, monsoon evenings in July–August that often clear after midnight, winter storms that last days.
-  const CLEAR_FRAC = [0.58, 0.57, 0.60, 0.66, 0.78, 0.84, 0.42, 0.40, 0.68, 0.76, 0.70, 0.57];
+  const CLEAR_FRAC = [0.90, 0.90, 0.91, 0.92, 0.95, 0.96, 0.88, 0.88, 0.93, 0.95, 0.93, 0.90];   // 4 to 12 percent of nights lost, by season
   const WX_START = Date.UTC(1928, 11, 1), wx = [];
   const invNorm = p => { const t = Math.sqrt(-2 * Math.log(p < .5 ? p : 1 - p)); const z = t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t); return p < .5 ? -z : z; };
   function wxAt(t) {

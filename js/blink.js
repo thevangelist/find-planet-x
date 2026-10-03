@@ -13,16 +13,19 @@ const Blink = (() => {
           <div id="blink-mode">Mounting the plates…</div>
           <div id="blink-left"></div>
           <div id="blink-side">
+            <button id="btn-leave" class="primary">Leave the machine &nbsp;<span class="kbd">Esc</span></button>
             <h3>Plate pair</h3>
             <div id="pair-info"></div>
             <canvas id="plate-map" width="270" height="220"></canvas>
             <h3>Suspects</h3>
             <div id="suspects"><span style="opacity:.5">No marks.</span></div>
+            <h3>Note on this pair</h3>
+            <textarea id="pair-note" rows="3" placeholder="free text, goes in the notebook"></textarea>
             <h3>&nbsp;</h3>
+            <button id="btn-side">Side by side &nbsp;<span class="kbd">B</span></button>
             <button id="btn-pencil">Pencil / hand &nbsp;<span class="kbd">P</span></button>
             <button id="btn-neg">Negative / positive &nbsp;<span class="kbd">N</span></button>
-            <div class="hints"><span class="kbd">left</span> plate A &nbsp;<span class="kbd">right</span> plate B &nbsp;<span class="kbd">space</span> switch<br><span class="kbd">W A S D</span> or right-drag moves · left-drag draws a pencil ring</div>
-            <button id="btn-leave" class="primary">Leave the machine</button>
+            <div class="hints">Left and right arrows switch the plates. Draw a pencil ring around anything that jumps.</div>
           </div>
         </div>`);
       scene.appendChild(wrap);
@@ -32,7 +35,7 @@ const Blink = (() => {
       canvas.width = canvas.height = size;
       $('#pair-info').innerHTML = `${opts.regionName}<br>A: ${opts.dates[0]} &nbsp; B: ${opts.dates[1]}<br>interval ${opts.spec.days} days<br>third plate: ${opts.thirdPlate ? 'yes' : 'no'}`;
 
-      let pair = null, plateIdx = 0, neg = false, pencil = true, stroke = null;
+      let pair = null, plateIdx = 0, neg = false, pencil = true, stroke = null, side = false;
       const strokes = [];
       let vx = Sky.W / 2 - size / 2, vy = Sky.H / 2 - size / 2;
       const keys = {}, suspects = [], covered = new Set();
@@ -103,7 +106,7 @@ const Blink = (() => {
         Audio_.swell(70);
         ov.querySelector('p').textContent = TEXT.discovery.quote; ov.querySelector('p').classList.add('on');
         await wait(5000);
-        finish({ found: true, suspects, minutes: Math.round(elapsed / 60 * 50) });
+        finish({ found: true, suspects, minutes: Math.round(elapsed / 60 * 50), note: $('#pair-note').value.trim() });
       }
       const packStroke = st => st ? st.filter((q, i) => i % 2 === 0 || i === st.length - 1).map(q => [Math.round(q[0] - Sky.W / 2), Math.round(q[1] - Sky.H / 2)]) : null;
       function finish(res) {
@@ -113,24 +116,35 @@ const Blink = (() => {
       }
 
       // ---- drawing ----
-      function draw() {
-        g.fillStyle = '#060708'; g.fillRect(0, 0, size, size);
-        if (!pair) return;
-        const src = plateIdx ? pair.b : pair.a;
-        g.drawImage(src, vx, vy, size, size, 0, 0, size, size);
-        if (focus < 0.45) { g.fillStyle = `rgba(6,7,8,${(0.45 - focus) * 0.9})`; g.fillRect(0, 0, size, size); }
-        // faint measuring cross of the comparator stage
-        g.strokeStyle = 'rgba(214,104,92,.14)'; g.lineWidth = 1; g.beginPath();
-        g.moveTo(size / 2, 0); g.lineTo(size / 2, size); g.moveTo(0, size / 2); g.lineTo(size, size / 2); g.stroke();
-        // suspect marks
+      function drawMarks(ox) {
+        g.save(); g.translate(ox, 0);
         g.lineCap = 'round'; g.lineJoin = 'round';
         const drawStroke = (st, live) => { if (st.length < 2) return; g.strokeStyle = live ? 'rgba(70,66,60,.9)' : 'rgba(60,56,50,.85)'; g.lineWidth = 2.2;
           g.beginPath(); st.forEach((q, i) => { const x = q[0] - vx + (i % 3) * 0.3, y = q[1] - vy; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
           g.strokeStyle = 'rgba(120,114,100,.35)'; g.lineWidth = 0.8; g.stroke(); };
         strokes.forEach(st => drawStroke(st, false)); if (stroke) drawStroke(stroke, true);
         g.strokeStyle = 'rgba(200,60,40,.8)'; g.lineWidth = 1;
-        suspects.forEach(s => { if (s.stroke) return; const p = Sky.mmToPx(s); const x = p.x - vx, y = p.y - vy; if (x < -20 || y < -20 || x > size + 20 || y > size + 20) return;
-          g.beginPath(); g.arc(x, y, 14, 0, 7); g.stroke(); });
+        suspects.forEach(s => { if (s.stroke) return; const p = Sky.mmToPx(s); const x = p.x - vx, y = p.y - vy; if (x < -20 || y < -20 || x > size + 20 || y > size + 20) return; g.beginPath(); g.arc(x, y, 14, 0, 7); g.stroke(); });
+        g.restore();
+      }
+      function draw() {
+        if (side) { // plate A left, plate B right, the same window of sky
+          const sz = size; g.fillStyle = '#060708'; g.fillRect(0, 0, canvas.width, canvas.height); if (!pair) return;
+          g.drawImage(pair.a, vx, vy, sz, sz, 0, 0, sz, sz); g.drawImage(pair.b, vx, vy, sz, sz, sz + 8, 0, sz, sz);
+          [0, sz + 8].forEach(ox => { const vg = g.createRadialGradient(ox + sz / 2, sz / 2, sz * 0.45, ox + sz / 2, sz / 2, sz * 0.78); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.42)'); g.fillStyle = vg; g.fillRect(ox, 0, sz, sz); });
+          g.fillStyle = '#e8e2d2'; g.fillRect(sz, 0, 8, sz);
+          if (focus < 0.45) { g.fillStyle = `rgba(6,7,8,${(0.45 - focus) * 0.9})`; g.fillRect(0, 0, canvas.width, sz); }
+          drawMarks(0); drawMarks(sz + 8); drawMap(); return; }
+        g.fillStyle = '#060708'; g.fillRect(0, 0, size, size);
+        if (!pair) return;
+        const src = plateIdx ? pair.b : pair.a;
+        g.drawImage(src, vx, vy, size, size, 0, 0, size, size);
+        if (focus < 0.45) { g.fillStyle = `rgba(6,7,8,${(0.45 - focus) * 0.9})`; g.fillRect(0, 0, size, size); }
+        const vg = g.createRadialGradient(size / 2, size / 2, size * 0.45, size / 2, size / 2, size * 0.78); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.42)'); g.fillStyle = vg; g.fillRect(0, 0, size, size);
+        // faint measuring cross of the comparator stage
+        g.strokeStyle = 'rgba(214,104,92,.14)'; g.lineWidth = 1; g.beginPath();
+        g.moveTo(size / 2, 0); g.lineTo(size / 2, size); g.moveTo(0, size / 2); g.lineTo(size, size / 2); g.stroke();
+        drawMarks(0);
         drawMap();
       }
       function drawMap() {
@@ -156,7 +170,7 @@ const Blink = (() => {
         // concentration decays slowly while blinking
         focus = clamp(focus - dt / 900, 0, 1);
         if (elapsed - lastIdle > 45) { lastIdle = elapsed; toast(TEXT.blinkIdle[Math.floor(Math.random() * TEXT.blinkIdle.length)]); if (Math.random() < .4) Audio_.play('chair_creak', 0.3); }
-        $('#blink-left').innerHTML = `<b>${opts.regionName}</b><br>field ${(size / MM).toFixed(0)} mm<br><span class="plate-id">PLATE ${plateIdx ? 'B' : 'A'}</span><br>concentration ${focus > .66 ? 'good' : focus > .33 ? 'fair' : 'poor'}`;
+        $('#blink-left').innerHTML = `<span class="plate-id">PLATE ${side ? 'A and B' : plateIdx ? 'B' : 'A'}</span><br>${opts.dates[plateIdx]}`;
         if (opts.onTick) opts.onTick(elapsed, focus);
         draw(); requestAnimationFrame(frame);
       }
@@ -164,14 +178,14 @@ const Blink = (() => {
 
       // ---- input ----
       const setPlate = want => { if (plateIdx !== want) { plateIdx = want; if (pair) Audio_.click(0.14, 1500, 0.03); } };
-      const kd = e => { keys[e.key] = true;
+      const kd = e => { if (/TEXTAREA|INPUT/.test(document.activeElement && document.activeElement.tagName)) return; keys[e.key] = true;
         if (e.key === ' ') { e.preventDefault(); if (!e.repeat) setPlate(plateIdx ^ 1); }
         if (e.key === 'ArrowLeft') { e.preventDefault(); setPlate(0); } if (e.key === 'ArrowRight') { e.preventDefault(); setPlate(1); }
-        if (e.key === 'n' || e.key === 'N') toggleNeg(); if (e.key === 'p' || e.key === 'P') togglePencil(); };
+        if (e.key === 'n' || e.key === 'N') toggleNeg(); if (e.key === 'p' || e.key === 'P') togglePencil(); if (e.key === 'b' || e.key === 'B') toggleSide(); if (e.key === 'Escape') $('#btn-leave').click(); };
       const ku = e => { keys[e.key] = false; };
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
       let drag = null;
-      const local = e => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) * size / r.width, (e.clientY - r.top) * size / r.height]; };
+      const local = e => { const r = canvas.getBoundingClientRect(); let x = (e.clientX - r.left) * canvas.width / r.width; const y = (e.clientY - r.top) * canvas.height / r.height; if (side && x > size + 8) x -= size + 8; return [Math.min(x, size), y]; };
       canvas.addEventListener('contextmenu', e => e.preventDefault());
       canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId);
         const pan = e.button !== 0 || e.shiftKey || !pencil;
@@ -185,10 +199,13 @@ const Blink = (() => {
         if (drag && !drag.moved) { const [x, y] = local(e); mark(x, y); } drag = null; });
       const togglePencil = () => { pencil = !pencil; canvas.style.cursor = pencil ? 'cell' : 'grab'; $('#btn-pencil').classList.toggle('primary', pencil); toast(pencil ? 'Pencil in hand. Draw a ring around a suspect.' : 'Hand: drag to move the plate.', 1500); };
       $('#btn-pencil').onclick = togglePencil; $('#btn-pencil').classList.add('primary'); canvas.style.cursor = 'cell';
+      const toggleSide = () => { side = !side; canvas.width = side ? size * 2 + 8 : size; canvas.height = size; canvas.style.width = ''; $('#btn-side').classList.toggle('primary', side); if (side) { const maxW = window.innerWidth - 420; if (canvas.width > maxW) canvas.style.width = maxW + 'px'; } };
+      $('#btn-side').onclick = toggleSide;
       const toggleNeg = () => { neg = !neg; canvas.classList.toggle('negative', neg); Prefs.set('negative', neg); };
       if (Prefs.get('negative')) toggleNeg();
       $('#btn-neg').onclick = toggleNeg;
-      $('#btn-leave').onclick = () => { Audio_.stop('amb_search'); Audio_.play('chair_creak', 0.4); finish({ found: false, suspects, minutes: Math.round(elapsed / 60 * 50) }); };
+      $('#btn-leave').onclick = () => { Audio_.stop('amb_search'); Audio_.play('chair_creak', 0.4); finish({ found: false, suspects, minutes: Math.round(elapsed / 60 * 50), note: $('#pair-note').value.trim() }); };
+      if (opts.note) $('#pair-note').value = opts.note;
       const onResize = () => {}; window.addEventListener('resize', onResize);
     });
   }

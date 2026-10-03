@@ -17,7 +17,7 @@ const SkyMap = (() => {
     [6.15, 24.33, 'M35', 'cl'], [16.69, 36.46, 'M13', 'cl'], [18.06, -24.38, 'M8', 'neb'], [18.61, -23.9, 'M22', 'cl'], [12.42, 26.1, 'Coma cluster', 'cl'], [17.9, -34.8, 'M7', 'cl'], [18.85, -6.27, 'M11', 'cl'], [1.56, 30.66, 'M33', 'gal']];
   const MIN_ALT = 25;
 
-  function render(container, { t, hour = 23, plates, onPick, onHour }) {
+  function render(container, { t, hour = 23, plates, pins = [], onPick, onHour }) {
     const wrap = el('div'); wrap.id = 'skymap-wrap'; container.appendChild(wrap);
     const bar = el('div', 'hours'); wrap.appendChild(bar);
     [21, 23, 1, 3].forEach(h => { const b = el('button', h === hour ? 'primary' : '', `${String(h).padStart(2, '0')}:00`); b.onclick = () => onHour(h); bar.appendChild(b); });
@@ -70,6 +70,9 @@ const SkyMap = (() => {
       plates.forEach(p => { const f = frame(p.ra, p.dec), col = p.labelled === false ? 'rgba(140,132,120,.8)' : 'rgba(199,38,30,.95)'; g.strokeStyle = col; g.lineWidth = 1.5; g.strokeRect(f.x, f.y, f.w, f.h); g.fillStyle = 'rgba(199,38,30,.10)'; g.fillRect(f.x, f.y, f.w, f.h);
         if (p.paired) g.strokeRect(f.x + 4, f.y + 4, f.w - 8, f.h - 8);
         const key = `${p.ra.toFixed(1)}|${p.dec.toFixed(0)}`; if (p.id && !done.has(key)) { done.add(key); g.fillStyle = col; g.textAlign = 'center'; g.fillText(p.labelled === false ? `No. ${p.id}, no label` : p.paired ? `No. ${Math.min(p.id, p.partner)} + ${Math.max(p.id, p.partner)}, pair` : `No. ${p.id}`, f.x + f.w / 2, f.y + f.h + 18); g.textAlign = 'left'; } });
+      // the player's own notes with a position
+      pins.forEach(n => { const x = X(n.ra), y = Y(n.dec); g.strokeStyle = 'rgba(216,205,180,.9)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x, y + 10); g.moveTo(x - 10, y); g.lineTo(x + 10, y); g.stroke();
+        g.fillStyle = 'rgba(216,205,180,.9)'; g.textAlign = 'left'; g.fillText(n.text, x + 12, y - 6); });
       // cursor frame
       if (cursor) { const f = frame(cursor.ra, cursor.dec), ok = alt(cursor.ra, cursor.dec) >= MIN_ALT; g.strokeStyle = ok ? '#fff' : 'rgba(160,151,138,.6)'; g.lineWidth = 2; g.setLineDash(ok ? [] : [4, 4]); g.strokeRect(f.x, f.y, f.w, f.h); g.setLineDash([]); }
       g.fillStyle = 'rgba(160,151,138,.8)'; g.textAlign = 'right'; g.fillText(`Flagstaff · ${String(hour).padStart(2, '0')}:00 MST · sidereal ${Astro.raStr(lst)} · shaded: below ${MIN_ALT}° or behind the pines`, W - 8, 20); g.textAlign = 'left';

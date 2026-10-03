@@ -97,7 +97,7 @@ const Game = (() => {
     const has = load();
     const t = el('div', 'fade', `<div id="title"><div class="portrait"></div><div class="side">
       <h1>Planet X</h1><h2>Mars Hill · 1929 · Ad Astra per Aspera</h2>
-      <p class="brief">In 1929 Lowell Observatory hired a Kansas farm boy to photograph the ecliptic and compare the plates in pairs, looking for one faint point that moves.
+      <p class="brief">In 1929 Lowell Observatory hired Clyde Tombaugh, a Kansas farm boy, to photograph the ecliptic and compare the plates in pairs, looking for one faint point that moves.
         Expose on clear, moonless nights. Label every sleeve by hand. Develop, blink, check against a third plate. Write down what you find.
         Nothing is remembered that is not written. It took him ten months.</p>
       <div class="menu">
@@ -125,8 +125,8 @@ const Game = (() => {
     ];
     const all = fixed.concat(sections);
     const html = all.map(s => `<section><h3>${s.title}</h3><dl>${s.items.map(i => `<dt>${i.name.replace(/_/g, ' ')}</dt><dd>${i.what}${i.urls.length ? ' ' + i.urls.map(u => `<a href="${u}" target="_blank" rel="noopener">${new URL(u).hostname.replace('www.', '')}</a>`).join(', ') : ''}</dd>`).join('')}</dl></section>`).join('');
-    root.appendChild(el('div', 'credits-page fade', `<header><h1>Credits</h1><p>Story after clydetombaugh.com and Clyde Tombaugh and Patrick Moore, Out of the Darkness. Bright stars from the HYG catalogue, the rest statistical. Pluto where it was in January 1930.</p></header>${html}<footer><button id="b-back" class="primary">Back</button></footer>`));
-    $('#b-back').onclick = title;
+    hideHud(); root.appendChild(el('div', 'credits-page fade', `<header><h1>Credits</h1><p>Story after clydetombaugh.com and Clyde Tombaugh and Patrick Moore, Out of the Darkness. Bright stars from the HYG catalogue, the rest statistical. Pluto where it was in January 1930.</p></header>${html}<footer><button id="b-back" class="primary">Back</button></footer>`));
+    $('#b-back').onclick = () => S && !S.done ? goTo(S.loc || 'room') : title();
   }
 
   // ---------- intro & tutorial ----------
@@ -175,12 +175,20 @@ const Game = (() => {
   function needsSecond() { const prs = pairs(); return S.plates.filter(p => p.label && !p.ruined && !prs.some(x => x.a === p || x.b === p))
     .map(p => ({ p, days: Math.round((S.t - p.t) / Astro.DAY) })).filter(x => x.days >= 1 && x.days <= 14).sort((a, b) => b.days - a.days); }
   const sameField = (ra, dec) => S.plates.filter(p => p.label && !p.ruined && Astro.sep(p.label.ra, p.label.dec, ra, dec) <= SAME_FIELD).sort((a, b) => a.t - b.t)[0];
+  // notes and plans that carry a position, e.g. "7h 20m +22 again", become pins on the sky
+  function notePins() {
+    const re = /(\d{1,2})h\s*(\d{1,2})m?\s*([+\-−]\s?\d{1,2}(?:\.\d)?)°?/;
+    const out = [];
+    (S.log || []).forEach(e => { const m = e.text && e.text.match(re); if (m) out.push({ ra: (+m[1] + m[2] / 60) % 24, dec: parseFloat(m[3].replace('−', '-').replace(/\s/, '')), text: e.text.slice(0, 40) }); });
+    Object.entries(S.cal || {}).forEach(([k, v]) => { const m = v.match(re); if (m) out.push({ ra: (+m[1] + m[2] / 60) % 24, dec: parseFloat(m[3].replace('−', '-').replace(/\s/, '')), text: `${k.slice(5)}: ${v.slice(0, 36)}` }); });
+    return out.filter(p => !isNaN(p.dec));
+  }
   function specFor(pr) {
     const a = pr.a, rr = rng(hashStr(pr.key));
     const pluto = Astro.covers(a.ra, a.dec, Sky.PLUTO.ra / 15, Sky.PLUTO.dec);
     // Pluto's apparent motion: full retrograde speed at opposition, ~zero 6h away (near the stationary points)
     const diff = Astro.raDiff(a.ra, Astro.oppositionRA(a.t)), plutoRate = Math.cos(clamp(diff / 6, 0, 1) * Math.PI / 2);
-    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, haze: !!(a.haze || pr.b.haze),
+    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev],
       asteroids: rr() < 0.3 ? 1 : rr() < 0.08 ? 2 : 0, density: 0.75 + rr() * 0.5,
       finds: FINDS.onPlates(a.ra, a.dec, a.t, pr.b.t).filter(f => !S.found_ids.includes(f.id)) };
   }
@@ -296,22 +304,47 @@ const Game = (() => {
     panelScene(Math.random() < .5 ? 'darkroom_tray.jpg' : 'darkroom_face.jpg', 'Darkroom', [und.length ? `${und.length} plate${und.length > 1 ? 's' : ''} in the rack: ${und.map(plateName).join(' · ')}.` : 'The trays are empty. Fixer and acetic acid.'],
       [{ label: 'Develop', sub: und.length ? `${und.length} × 20 min under the red lamp.` : 'Nothing to develop.', primary: !!und.length, disabled: !und.length, fn: develop }, { label: 'To the observatory', sub: 'The comparator by day. The dome by night.', primary: !und.length, fn: () => goTo('observatory') }], { red: true, task: und.length ? `Develop ${und.length} plate${und.length > 1 ? 's' : ''}.` : 'Nothing to develop.' });
   }
+  // Developing: the image comes up in the tray under the red lamp. Pull the plate when the density is right.
+  // Too early and the faint stars never appear; too late and the whole plate fogs.
   async function develop() {
     const und = undeveloped();
-    hud('Darkroom'); $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden');
-    const root = scene(); root.innerHTML = '';
-    const pic = el('div', 'picture fade red ken'); pic.style.backgroundImage = `url(assets/img/${Math.random() < .5 ? 'darkroom_tray.jpg' : 'darkroom_face.jpg'})`; root.appendChild(pic);
-    const cap = el('div', 'caption'); cap.style.bottom = '17vh'; cap.innerHTML = `<p class="on">Red light. The smell of fixer and acetic acid.</p><p class="on hint">Developing… ${und.map(plateName).join(' · ')}</p>`; root.appendChild(cap);
-    const bar = el('div', 'darkroom-bar', '<i></i>'); root.appendChild(bar);
-    live = false; Audio_.loop('safelight', 0.2, 1); Audio_.play('liquid_pour', 0.5);
-    setTimeout(() => Audio_.play('water_slosh', 0.4), 3500);
-    const n = und.length, per = 5000;
-    for (let i = 0; i < n; i++) { bar.querySelector('i').style.width = `${(i + 1) / n * 100}%`; await wait(per); if (i < n - 1) Audio_.play('water_slosh', 0.4); }
-    live = true; und.forEach(p => p.developed = true); tick(20 * n); S.energy = clamp(S.energy - 0.02 * n, 0, 1);
-    chronicle(TEXT.logAuto.developed(n)); Audio_.stop('safelight', 1);
-    const np = unblinked().length; toast(np ? `The plates are drying. Pairs ready to blink: ${np}.` : 'The plates dry in the rack. No pair yet.', 3500);
-    await wait(1500); goTo('comparator');
+    hud('Darkroom'); $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden'); live = false;
+    Audio_.loop('safelight', 0.2, 1);
+    for (let i = 0; i < und.length; i++) {
+      const p = und[i]; const result = await developOne(p, i + 1, und.length);
+      p.developed = true; p.dev = result; tick(20); S.energy = clamp(S.energy - 0.02, 0, 1);
+    }
+    Audio_.stop('safelight', 1); live = true; save();
+    goTo('comparator');
   }
+  function developOne(plate, n, of) {
+    return new Promise(res => {
+      const root = scene(); root.innerHTML = '';
+      const pic = el('div', 'picture red'); pic.style.backgroundImage = 'url(assets/img/darkroom_tray.jpg)'; pic.style.filter = 'saturate(1.1) brightness(.35)'; root.appendChild(pic);
+      const wrap = el('div', 'dev-wrap'); root.appendChild(wrap);
+      const cv = el('canvas'); cv.width = 420; cv.height = 340; wrap.appendChild(cv);
+      const meter = el('div', 'dev-meter', '<i></i><b></b>'); wrap.appendChild(meter);
+      const info = el('div', 'dev-info', `<h2 class="task">Pull the plate when it is right.</h2><p>Plate ${n} of ${of}: ${plateName(plate)}. The stars come up slowly. The faint ones last.</p>`); wrap.appendChild(info);
+      const btn = el('button', 'primary', 'Pull the plate &nbsp;<span class="kbd">space</span>'); wrap.appendChild(btn);
+      const g = cv.getContext('2d'), r = rng(hashStr('dev' + plate.id));
+      const stars = Array.from({ length: 260 }, () => ({ x: r() * 420, y: r() * 340, m: r() }));
+      let d = 0, t0 = performance.now(), done = false;
+      Audio_.play('liquid_pour', 0.5);
+      const draw = () => { g.fillStyle = `rgb(${18 + d * 0.9},${16 + d * 0.8},${14 + d * 0.7})`; g.fillRect(0, 0, 420, 340);
+        stars.forEach(s => { const vis = clamp((d - s.m * 70) / 25, 0, 1); if (vis <= 0) return; const a = vis * (0.35 + (1 - s.m) * 0.6); g.fillStyle = `rgba(230,225,215,${a})`; const sz = 1 + (1 - s.m) * 2.5 * vis; g.fillRect(s.x, s.y, sz, sz); });
+        if (d > 80) { g.fillStyle = `rgba(200,195,185,${(d - 80) / 60})`; g.fillRect(0, 0, 420, 340); }
+        meter.querySelector('i').style.width = `${d}%`; meter.querySelector('b').style.left = `${d}%`; };
+      const loop = now => { if (done) return; d = Math.min(100, (now - t0) / 70); draw(); if (d >= 100) finish(); else requestAnimationFrame(loop); };
+      function finish() { done = true; window.removeEventListener('keydown', kd); Audio_.play('water_slosh', 0.4);
+        const q = d < 50 ? 'thin' : d <= 80 ? 'good' : 'fogged';
+        toast(q === 'good' ? 'Pulled right. Into the fixer.' : q === 'thin' ? 'Pulled early. The plate is thin; the faint stars never came up.' : 'Too long in the bath. The plate fogged.', 3000);
+        setTimeout(() => res(q), 1400); }
+      const kd = e => { if (e.key === ' ') { e.preventDefault(); finish(); } };
+      window.addEventListener('keydown', kd); btn.onclick = finish;
+      requestAnimationFrame(loop);
+    });
+  }
+
   function comparator() {
     const ub = unblinked();
     const lines = [pick(TEXT.afternoon)];
@@ -337,9 +370,10 @@ const Game = (() => {
     Audio_.play('glass_plate_set', 0.5);
     live = false;
     const res = await Blink.run({ spec: specFor(pr), dates: [Astro.fmtShort(pr.a.t), Astro.fmtShort(pr.b.t)], regionName: reg.name, thirdPlate: pr.third, focus: S.focus,
-      restore: S.suspects.filter(s => s.pair === pr.key),
+      restore: S.suspects.filter(s => s.pair === pr.key), note: (S.pairNotes || {})[pr.key] || '',
       onTick: (sec, f) => { $('#hud-focus').textContent = 'concentration: ' + (f > .66 ? 'good' : f > .33 ? 'fair' : 'poor'); } });
-    live = true; S.focus = res.focus; S.sessions++; tick(res.minutes + 10); const out = S.energy - res.minutes / 50 * 0.12 <= 0.05;
+    live = true; S.focus = res.focus; S.sessions++; tick(res.minutes + 10);
+    S.pairNotes ??= {}; if (res.note && res.note !== S.pairNotes[pr.key]) { S.pairNotes[pr.key] = res.note; addLog(`${reg.name}, ${Astro.fmtShort(pr.a.t)} / ${Astro.fmtShort(pr.b.t)}: ${res.note}`); S.lastNote = S.t; } const out = S.energy - res.minutes / 50 * 0.12 <= 0.05;
     const before = S.suspects.filter(s => s.pair === pr.key);
     S.suspects = S.suspects.filter(s => s.pair !== pr.key).concat(res.suspects.map(s => ({ pair: pr.key, ...s })));
     res.suspects.forEach(s => { const old = before.find(o => Math.abs(o.x - s.x) < 0.01 && Math.abs(o.y - s.y) < 0.01);
@@ -476,10 +510,10 @@ const Game = (() => {
     panel.style.maxWidth = '380px'; if (!flatPref) panel.parentElement.classList.add('dome-room');
     const pick_ = (ra, dec) => { Dome3D.unmount(); expose(ra, dec); };
     const onHour = h => { S.clock = Math.max(S.clock, HOUR_CLOCK[h]); tick(0); Dome3D.unmount(); dome(); };
-    if (flatPref) { SkyMap.render(scene(), { t: S.t, hour: S.hour, plates: labelled.map(p => ({ ...p, paired: true })), onPick: pick_, onHour });
+    if (flatPref) { SkyMap.render(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), onPick: pick_, onHour });
       if (Dome3D.available()) { const b = el('button', '', 'Dome view'); b.id = 'to-dome'; b.onclick = () => { Prefs.set('flatChart', false); dome(); }; $('#skymap-wrap .hours').appendChild(b); } }
     else { const btn = panel.querySelector('.menu button.primary'), sm = btn && btn.querySelector('small');
-      Dome3D.mount(scene(), { t: S.t, hour: S.hour, plates: labelled.map(p => ({ ...p, paired: true })), onPick: pick_, onHour, onFlat: () => { Dome3D.unmount(); Prefs.set('flatChart', true); dome(); },
+      Dome3D.mount(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), onPick: pick_, onHour, onFlat: () => { Dome3D.unmount(); Prefs.set('flatChart', true); dome(); },
         onPointing: (cur, ok) => { if (!sm) return; const sf = ok && sameField(cur.ra, cur.dec);
           sm.textContent = !ok ? 'Too low. Point above the pines.' : sf ? (Astro.key(sf.t) === Astro.key(S.t) ? `Field of plate No. ${sf.id}, exposed tonight. A pair needs another night.` : `Field of plate No. ${sf.id}, ${Astro.fmtShort(sf.t)}. Same label makes a pair.`) : `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · new field`; btn.disabled = !ok; } }); }
     Audio_.play('dome_slit_open', 0.5); Audio_.loop('amb_dome', 0.3, 4);
@@ -502,6 +536,7 @@ const Game = (() => {
     if (!res.ruined) await labelPlate(plate);
     panelScene('walk.jpg', 'Dome', [res.ruined ? 'The plate is ruined. The stars trailed into lines.' : 'The plate is in its holder. The fingers are gone.', 'The night is still long.'],
       [{ label: 'Another exposure', primary: !res.ruined && !dawn(), sub: dawn() ? 'Dawn is coming.' : `Point somewhere else. It is ${hhmm(S.clock)}.`, disabled: res.ruined || dawn(), fn: dome },
+       { label: 'To the darkroom', sub: `Develop tonight's ${undeveloped().length} plate${undeveloped().length === 1 ? '' : 's'} now.`, disabled: !undeveloped().length, fn: () => goTo('darkroom') },
        { label: 'Turn in', primary: res.ruined || dawn(), sub: 'Sleep until the afternoon. The plates wait in the darkroom.', fn: () => sleep(1) }], { task: res.ruined ? 'Plate lost.' : dawn() ? 'Dawn. Turn in.' : 'Plate done. The night is long.' });
   }
   // the plate sleeve is labelled by hand; what is written is what the plate will be known by
@@ -550,6 +585,7 @@ const Game = (() => {
     box.appendChild(row('Sound', () => !Prefs.get('muted'), v => { if (!!Prefs.get('muted') === v) Audio_.toggleMute(); }));
     box.appendChild(row('Music', () => Prefs.get('music') !== false, v => { Prefs.set('music', v); Audio_.setMusic(v); }));
     box.appendChild(row('3D dome view', () => !Prefs.get('flatChart'), v => Prefs.set('flatChart', !v)));
+    const cr = el('button', '', 'Credits'); cr.onclick = () => { box.remove(); Dome3D.unmount(); credits(); }; box.appendChild(cr);
     const close = el('button', 'primary', 'Close'); close.onclick = () => box.remove(); box.appendChild(close);
     document.body.appendChild(box);
   }
