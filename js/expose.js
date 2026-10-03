@@ -12,7 +12,7 @@ const Expose = (() => {
       const fit = () => { c.width = window.innerWidth; c.height = window.innerHeight; }; fit(); window.addEventListener('resize', fit);
       const SEC_PER_MIN = 0.14, total = opts.minutes;   // an hour of guiding in about eight seconds
       let minutes = 0, pos = { x: 0, y: 0 }, vel = { x: 0, y: 0 }, errSec = 0, t0 = performance.now(), last = t0, phase = Math.random() * 6, running = true, lastLine = -8;
-      const inner = 16, ruinAt = 4; let nextGust = 0.9 + Math.random() * 1.2; let meteor = null, nextMeteor = Math.random() < 0.06 ? 1.5 + Math.random() * 5 : Infinity;   // a meteor on one exposure in sixteen
+      const inner = 16, ruinAt = 4; let nextGust = 0.9 + Math.random() * 1.2; let meteor = null, nextMeteor = Math.random() < 0.08 ? 1.5 + Math.random() * 5 : Infinity;   // a meteor on one exposure in twelve, now and then a bright one
       const FOV = 2.2, cosd = Math.cos((opts.dec || 0) * Math.PI / 180);
       const real = (typeof BRIGHT_STARS !== 'undefined' && opts.ra != null) ? BRIGHT_STARS.map(s => { let dra = (s[0] - opts.ra); if (dra > 12) dra -= 24; if (dra < -12) dra += 24; return { x: 0.5 - dra * 15 * cosd / FOV, y: 0.5 - (s[1] - opts.dec) / FOV, m: Math.max(0.2, (6 - s[2]) / 6) }; }).filter(s => s.x > 0 && s.x < 1 && s.y > 0 && s.y < 1) : [];
       const rr = rng(hashStr('ep' + (opts.ra || 0).toFixed(2) + (opts.dec || 0).toFixed(1)));
@@ -60,9 +60,9 @@ const Expose = (() => {
           g.fillStyle = `rgba(230,228,220,${0.2 + s.m * 0.6})`; g.fillRect(x, y, size, size); });
         // now and then a meteor crosses the field, a faint streak gone in a blink
         const tsec = minutes * SEC_PER_MIN;
-        if (!meteor && tsec > nextMeteor) { nextMeteor = Infinity; const a = Math.random() * Math.PI * 2; meteor = { x: cx + (Math.random() - .5) * R * 1.4, y: cy + (Math.random() - .5) * R * 1.4, dx: Math.cos(a) * R * 2.6, dy: Math.sin(a) * R * 2.6, t0: tsec, life: 0.25 + Math.random() * 0.2 }; }
+        if (!meteor && tsec > nextMeteor) { nextMeteor = Infinity; const a = Math.random() * Math.PI * 2; meteor = { x: cx + (Math.random() - .5) * R * 1.4, y: cy + (Math.random() - .5) * R * 1.4, dx: Math.cos(a) * R * 2.6, dy: Math.sin(a) * R * 2.6, t0: tsec, life: 0.25 + Math.random() * 0.2, bright: Math.random() < 0.25 ? 2.2 : 1 }; }
         if (meteor) { const u = (tsec - meteor.t0) / meteor.life; if (u > 1) meteor = null; else { const x1 = meteor.x + meteor.dx * u, y1 = meteor.y + meteor.dy * u, x0 = x1 - meteor.dx * 0.18, y0 = y1 - meteor.dy * 0.18;
-          const lg = g.createLinearGradient(x0, y0, x1, y1); lg.addColorStop(0, 'rgba(230,228,220,0)'); lg.addColorStop(1, `rgba(230,228,220,${0.55 * (1 - u)})`); g.strokeStyle = lg; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); } }
+          const lg = g.createLinearGradient(x0, y0, x1, y1); lg.addColorStop(0, 'rgba(230,228,220,0)'); lg.addColorStop(1, `rgba(235,232,222,${Math.min(1, 0.55 * meteor.bright) * (1 - u)})`); g.strokeStyle = lg; g.lineWidth = 1.2 * meteor.bright; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); } }
         // guide star
         const gr = g.createRadialGradient(cx + sx, cy + sy, 0, cx + sx, cy + sy, 4); gr.addColorStop(0, 'rgba(235,232,222,.95)'); gr.addColorStop(.5, 'rgba(225,220,205,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
         g.fillStyle = gr; g.beginPath(); g.arc(cx + sx, cy + sy, 4, 0, 7); g.fill();

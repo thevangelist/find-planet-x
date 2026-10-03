@@ -56,12 +56,13 @@ h1, h2, h3 { margin: 0; }
 #hud .clock .dot { fill: var(--paper-dim); stroke: none; }
 #hud-date { color: var(--paper); }
 #hud-focus { margin-left: auto; }
+#hud-coffee { pointer-events: auto; padding: 4px 12px; margin: 0; border-color: var(--line); color: var(--paper-dim); }
+#hud-coffee:hover { color: var(--paper); }
 #hud-nav { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 56px; z-index: 61; display: flex; align-items: center; gap: 2px; }
 #hud-nav button { padding: 4px 14px; margin: 0; border-color: transparent; color: var(--paper-dim); background: transparent; font: var(--t-ui); }
 #hud-nav button:hover { color: var(--paper); }
 #hud-nav button.on { color: var(--paper); border-bottom: 2px solid var(--accent); border-radius: 0; }
-#hud-nav button.quick { margin-left: 8px; border-color: var(--line); }
-#hud-nav button.quick:nth-of-type(5) { margin-left: var(--s4); }
+#hud-nav button:last-child { margin-left: var(--s3); border-color: var(--line); }
 #hud-nav button.right { display: none; }
 #flow { position: absolute; bottom: 24px; left: 48px; right: 180px; z-index: 61; font: var(--t-meta); color: var(--paper-dim); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #flow .step { display: inline; }
@@ -197,6 +198,7 @@ button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); 
 #blink-side .hints { margin: var(--s2) 0; line-height: 1.6; color: var(--paper-dim); }
 #blink-side .suspect { display: flex; justify-content: space-between; align-items: center; gap: var(--s1); border-bottom: 1px dotted var(--line); padding: 4px 0; }
 #blink-side .suspect span.v { color: var(--paper); }
+#blink-side select.guess { font: var(--t-meta); color: var(--paper); background: #15171a; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 2px 6px; margin: 4px 0; }
 #plate-map { width: 270px; height: 200px; display: block; border: 1px solid var(--line); background: #0b0c0e; margin-top: var(--s1); }
 #blink-left { position: absolute; left: 48px; bottom: 64px; z-index: 10; font: var(--t-meta); color: var(--paper-dim); line-height: 1.8; max-width: 280px; }
 #blink-left b { color: var(--paper); font-weight: 600; }
@@ -292,6 +294,12 @@ button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); 
 .dev-info .task { font: var(--t-h2); font-size: 28px; color: #fff; margin: 0 0 var(--s1); }
 .dev-info p { font: var(--t-body); margin: 0 0 var(--s2); }
 .dev-wrap button { width: 100%; }
-.dev-wrap button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.dev-wrap button.primary .kbd { color: #fff; border-color: rgba(255,255,255,.6); }
-.dev-wrap button.primary:hover { background: #e07a6e; border-color: #e07a6e; }
+
+/* how the search works */
+.howto { position: absolute; inset: 0; z-index: 85; background: rgba(19,17,6,.92); display: flex; align-items: center; justify-content: center; padding: 48px; }
+.howto .inner { max-width: 640px; }
+.howto h1 { font: var(--t-h2); margin-bottom: var(--s2); }
+.howto ol { margin: 0 0 var(--s3); padding-left: 24px; font: var(--t-body); }
+.howto li { margin-bottom: var(--s1); }
+.howto li b { color: #fff; font-weight: 600; }
+.howto p { font: var(--t-meta); color: var(--paper-dim); margin: 0 0 var(--s3); }

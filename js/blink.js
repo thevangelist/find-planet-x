@@ -50,7 +50,7 @@ const Blink = (() => {
           let best = null, bd = 4;
           for (const m of pair.movers) { const d0 = Math.hypot(m.x - r.x, m.y - r.y), d1 = m.dx != null ? Math.hypot(m.x + m.dx - r.x, m.y + m.dy - r.y) : 99; const d = Math.min(d0, d1); if (d < bd) { bd = d; best = m; } }
           const st = r.stroke ? r.stroke.map(q => [q[0] + Sky.W / 2, q[1] + Sky.H / 2]) : null; if (st) strokes.push(st);
-          suspects.push({ m: best, x: r.x, y: r.y, kind: r.kind, verdict: r.verdict, stroke: st, find: r.find || null, shift: best && best.dx != null ? Math.hypot(best.dx, best.dy) : 0 });
+          suspects.push({ m: best, x: r.x, y: r.y, kind: r.kind, verdict: r.verdict, stroke: st, find: r.find || null, guess: r.guess || '?', shift: best && best.dx != null ? Math.hypot(best.dx, best.dy) : 0 });
         });
         renderSuspects(); }, 60);
 
@@ -66,7 +66,7 @@ const Blink = (() => {
         }
         if (best && suspects.some(s => s.m === best)) { toast('Already marked.'); return; }
         if (st) strokes.push(st);
-        const s = { m: best, x: mm.x, y: mm.y, kind: best ? best.kind : 'star', verdict: null, stroke: st, find: best && best.find ? best.find.id : null,
+        const s = { m: best, x: mm.x, y: mm.y, kind: best ? best.kind : 'star', verdict: null, stroke: st, find: best && best.find ? best.find.id : null, guess: '?',
           shift: best && best.dx != null ? Math.hypot(best.dx, best.dy) : 0 };
         if (s.kind === 'star') s.verdict = 'a star, does not move';
         if (s.kind === 'planet') s.verdict = `${best.name}. Known, and far too bright.`;
@@ -79,7 +79,10 @@ const Blink = (() => {
         suspects.forEach((s, i) => {
           const row = el('div', 'suspect');
           const shift = s.kind === 'star' || s.kind === 'variable' ? '' : ` &nbsp;Δ ${s.shift.toFixed(1)} mm`;
-          row.innerHTML = `<span>#${i + 1} &nbsp;x ${s.x.toFixed(1)} &nbsp;y ${s.y.toFixed(1)}${shift}<br><span class="v">${s.verdict ?? ''}</span></span>`;
+          const GUESS = [['?', 'what is it?'], ['pluto', 'Planet X'], ['asteroid', 'asteroid'], ['comet', 'comet'], ['variable', 'variable star'], ['defect', 'flaw'], ['planet', 'a planet']];
+          const judged = s.verdict && s.guess !== '?' ? (s.guess === s.kind ? ' · guessed right' : ' · guessed wrong') : '';
+          row.innerHTML = `<span>#${i + 1} &nbsp;x ${s.x.toFixed(1)} &nbsp;y ${s.y.toFixed(1)}${shift}<br>${s.verdict ? '' : `<select class="guess">${GUESS.map(([v, t]) => `<option value="${v}"${s.guess === v ? ' selected' : ''}>${t}</option>`).join('')}</select>`}<span class="v">${s.verdict ?? ''}${judged}</span></span>`;
+          const sel = row.querySelector('select'); if (sel) sel.onchange = () => { s.guess = sel.value; };
           if (!s.verdict) {
             const b = el('button', '', 'Check'); b.disabled = !opts.thirdPlate;
             b.title = opts.thirdPlate ? 'Compare against the third plate' : 'You need a third plate of the same region';
@@ -114,7 +117,7 @@ const Blink = (() => {
       const packStroke = st => st ? st.filter((q, i) => i % 2 === 0 || i === st.length - 1).map(q => [Math.round(q[0] - Sky.W / 2), Math.round(q[1] - Sky.H / 2)]) : null;
       function finish(res) {
         active = null;
-        res.suspects = res.suspects.map(s => ({ x: s.x, y: s.y, kind: s.kind, verdict: s.verdict, find: s.find || null, stroke: packStroke(s.stroke) }));
+        res.suspects = res.suspects.map(s => ({ x: s.x, y: s.y, kind: s.kind, verdict: s.verdict, find: s.find || null, guess: s.guess || '?', stroke: packStroke(s.stroke) }));
         running = false; window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku);
         window.removeEventListener('resize', onResize); resolve({ ...res, focus });
       }

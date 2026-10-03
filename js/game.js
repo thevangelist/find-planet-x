@@ -134,7 +134,7 @@ const Game = (() => {
     Audio_.loop('amb_arrival', 0.16, 6);
     const skipped = await slides(TEXT.intro, { skip: 'Skip the intro' });
     Audio_.stop('amb_arrival', 4);
-    if (skipped) { S.t = START; S.phase = 'evening'; S.clock = 1155; S.loc = 'dome'; toast('Two of Slipher’s March plates wait at the comparator. The dome is yours tonight.', 6000); chronicle('April 1929. Began photographing the ecliptic. Slipher: pairs of plates about a week apart, always at opposition.'); save(); return day(); }
+    if (skipped) { S.t = START; S.phase = 'evening'; S.clock = 1155; S.loc = 'dome'; toast('Two of Slipher’s March plates wait at the comparator. The dome is yours tonight.', 6000); chronicle('April 1929. Began photographing the ecliptic. Slipher: pairs of plates about a week apart, always at opposition.'); save(); return howTo(day); }
     await tutorial();
   }
   async function tutorial() {
@@ -196,8 +196,8 @@ const Game = (() => {
   }
 
   // ---------- day loop: free movement between the places on Mars Hill ----------
-  const LOCS = [['darkroom', 'Darkroom'], ['observatory', 'Observatory'], ['logbook', 'Notebook'], ['calendar', 'Calendar']];
-  const locOf = l => l === 'comparator' || l === 'dome' || l === 'status' || l === 'room' ? 'observatory' : l;
+  const LOCS = [['observatory', 'Observatory'], ['darkroom', 'Darkroom'], ['logbook', 'Notebook']];
+  const locOf = l => l === 'comparator' || l === 'dome' || l === 'status' || l === 'room' ? 'observatory' : l === 'calendar' ? 'logbook' : l;
   const phaseOf = clock => clock < 720 ? 'morning' : clock < 1140 ? 'afternoon' : 'evening';
   const isDark = () => S.clock >= 1140, dawn = () => S.clock >= 1680;
   const HOUR_CLOCK = { 21: 1260, 23: 1380, 1: 1500, 3: 1620 }, hourOf = c => c < 1320 ? 21 : c < 1440 ? 23 : c < 1560 ? 1 : 3;
@@ -206,8 +206,10 @@ const Game = (() => {
     LOCS.forEach(([id, name]) => { const b = el('button', id === locOf(S.loc) ? 'on' : '', name); b.onclick = () => goTo(id); n.appendChild(b); });
     // the two things he does besides the work
     const today = Astro.key(S.t);
-    const cof = el('button', 'quick', 'Coffee'); cof.title = 'Sharp for ninety minutes, then a dip. 20 min.'; cof.onclick = () => { Audio_.play('coffee_pour', 0.5); S.focus = clamp(S.focus + 0.35, 0, 1); S.coffeeAt = S.clock; if (S.ate !== today) { S.ate = today; S.energy = clamp(S.energy + 0.12, 0, 1); } tick(20); toast('Coffee and bread at the stove. Sharp for an hour or so.', 2500); save(); hud($('#hud-place').textContent); }; n.appendChild(cof);
-    const bed = el('button', 'quick', 'Turn in'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; n.appendChild(bed);
+    const bed = el('button', '', 'Turn in'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; n.appendChild(bed);
+    // coffee sits with the condition it fixes, on the right
+    const old = $('#hud-coffee'); if (old) old.remove();
+    const cof = el('button', '', 'Coffee'); cof.id = 'hud-coffee'; cof.title = 'Sharp for ninety minutes, then a dip. 20 min.'; cof.onclick = () => { Audio_.play('coffee_pour', 0.5); S.focus = clamp(S.focus + 0.35, 0, 1); S.coffeeAt = S.clock; if (S.ate !== today) { S.ate = today; S.energy = clamp(S.energy + 0.12, 0, 1); } tick(20); toast('Coffee and bread at the stove. Sharp for an hour or so.', 2500); save(); hud($('#hud-place').textContent); }; $('#hud').appendChild(cof);
     flow();
   }
   // Order of the programme: plates without labels, a backlog of unexamined pairs, suspects never checked,
@@ -226,7 +228,7 @@ const Game = (() => {
       ['Label', o.unl ? `${o.unl} unlabelled` : 'all labelled', false, o.unl > 0],
       ['Develop', und ? `${und} in the rack` : 'rack empty', S.loc === 'darkroom', und > 5],
       ['Blink', o.backlog ? `${o.backlog} pair${o.backlog === 1 ? '' : 's'} waiting` : 'nothing waiting', S.loc === 'comparator', o.backlog > 4],
-      ['Check', o.open ? `${o.open} suspect${o.open === 1 ? '' : 's'} open` : 'no suspects open', false, o.open > 2],
+      ['Check', o.open ? `${o.open} suspect${o.open === 1 ? '' : 's'} open` : (() => { const judged = S.suspects.filter(s => s.right != null); return judged.length ? `guesses ${judged.filter(s => s.right).length} of ${judged.length} right` : 'no suspects open'; })(), false, o.open > 2],
       ['Order', `${o.label} · ${analysed}/${shot} analysed`, S.loc === 'logbook', o.score < .35],
     ];
     steps.forEach(([name, sub, now, warn], i) => { if (i) f.appendChild(el('span', 'arrow', '·')); f.appendChild(el('span', 'step' + (now ? ' now' : '') + (warn ? ' warn' : ''), `<b>${name}</b> ${sub}`)); });
@@ -390,7 +392,7 @@ const Game = (() => {
     S.pairNotes ??= {}; if (res.note && res.note !== S.pairNotes[pr.key]) { S.pairNotes[pr.key] = res.note; addLog(`${reg.name}, ${Astro.fmtShort(pr.a.t)} / ${Astro.fmtShort(pr.b.t)}: ${res.note}`); S.lastNote = S.t; }
     if (S.loc !== 'comparator') { save(); return; }   // left through the location bar const out = S.energy - res.minutes / 50 * 0.12 <= 0.05;
     const before = S.suspects.filter(s => s.pair === pr.key);
-    S.suspects = S.suspects.filter(s => s.pair !== pr.key).concat(res.suspects.map(s => ({ pair: pr.key, ...s })));
+    S.suspects = S.suspects.filter(s => s.pair !== pr.key).concat(res.suspects.map(s => ({ pair: pr.key, ...s, right: s.verdict && s.guess && s.guess !== '?' ? s.guess === s.kind : null })));
     res.suspects.forEach(s => { const old = before.find(o => Math.abs(o.x - s.x) < 0.01 && Math.abs(o.y - s.y) < 0.01);
       if (s.verdict && !(old && old.verdict)) {
         if (s.find) { const f = FINDS.list.find(x => x.id === s.find); if (f && !S.found_ids.includes(f.id)) { S.found_ids.push(f.id);
@@ -459,7 +461,8 @@ const Game = (() => {
       pg.querySelectorAll('canvas.sk').forEach(cv => sketchPad(cv, S.log[+cv.dataset.i]));
       return pg; };
     const book = el('div', 'notebook fade'); book.appendChild(page(left, 'left')); book.appendChild(page(left + 1, 'right')); root.appendChild(book);
-    const ctl = el('div', 'book-ctl', `<button id="pg-prev" ${left === 0 ? 'disabled' : ''}>Earlier pages</button><span>pages ${left + 1} and ${left + 2} of ${last + 1}</span><button id="pg-next" ${left + 2 > last ? 'disabled' : ''}>Later pages</button>`); root.appendChild(ctl);
+    const ctl = el('div', 'book-ctl', `<button id="pg-prev" ${left === 0 ? 'disabled' : ''}>Earlier pages</button><span>pages ${left + 1} and ${left + 2} of ${last + 1}</span><button id="pg-next" ${left + 2 > last ? 'disabled' : ''}>Later pages</button><button id="pg-cal">Calendar</button>`); root.appendChild(ctl);
+    $('#pg-cal').onclick = () => goTo('calendar');
     const flip = i => { Audio_.play('page_turn', 0.4, 3); logbook(i); };
     $('#pg-prev').onclick = () => flip(left - 2); $('#pg-next').onclick = () => flip(left + 2);
     const o = order();
@@ -501,11 +504,11 @@ const Game = (() => {
         ${done}${note ? `<span class="note">${note}</span>` : ''}</div>`);
     }
     const dark = (() => { let n = 0; for (let d = 1; d <= days; d++) if (Astro.moonDark(Date.UTC(y, m, d))) n++; return n; })();
-    const cal = el('div', 'calendar fade', `<div class="cal-head"><button id="cal-prev">Earlier</button><h2>${Astro.FI_MONTHS[m]} ${y}</h2><button id="cal-next">Later</button></div>
+    const cal = el('div', 'calendar fade', `<div class="cal-head"><button id="cal-prev">Earlier</button><h2>${Astro.FI_MONTHS[m]} ${y}</h2><button id="cal-next">Later</button><button id="cal-book">Notebook pages</button></div>
       <div class="cal-sub">${dark} moonless nights this month. Dark discs are dark of the moon. Each day shows what was exposed, developed and blinked. Click a day to write a plan.</div>
       <div class="grid"><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>${cells.join('')}</div>`);
     root.appendChild(cal);
-    $('#cal-prev').onclick = () => calendar(Date.UTC(y, m - 1, 1)); $('#cal-next').onclick = () => calendar(Date.UTC(y, m + 1, 1));
+    $('#cal-prev').onclick = () => calendar(Date.UTC(y, m - 1, 1)); $('#cal-next').onclick = () => calendar(Date.UTC(y, m + 1, 1)); $('#cal-book').onclick = () => goTo('logbook');
     cal.querySelectorAll('.cell[data-k]').forEach(c => c.addEventListener('click', () => {
       if (c.querySelector('input')) return; const k = c.dataset.k; const inp = el('input'); inp.value = S.cal[k] || ''; inp.placeholder = 'plan…'; inp.maxLength = 48; c.appendChild(inp); inp.focus();
       const done = () => { const v = inp.value.trim(); if (v !== (S.cal[k] || '')) { if (v) S.cal[k] = v; else delete S.cal[k]; tick(5); Audio_.play('pencil_write', 0.4); S.lastNote = S.t; } save(); calendar(Date.UTC(y, m, 1)); };
@@ -598,6 +601,19 @@ const Game = (() => {
     title();
   }
 
+  // the whole mechanic on one screen
+  function howTo(then) {
+    const box = el('div', 'howto fade', `<div class="inner"><h1>How the search works</h1><ol>
+      <li><b>Expose.</b> In the dome, turn the telescope to a field above the pines and expose a plate. One frame is one plate. An hour of guiding passes in seconds.</li>
+      <li><b>Label.</b> Write the field on the sleeve. Only the label is remembered. Every exposed plate stays on the sky as a frame, red once labelled.</li>
+      <li><b>Second plate.</b> Expose the same field again on another night, within two weeks, with the same label. Two plates of one field are a pair.</li>
+      <li><b>Develop.</b> In the darkroom, pull each plate from the bath when the marker sits in the middle.</li>
+      <li><b>Blink.</b> At the comparator, switch between plate A and B with the arrow keys. Stars stay. Anything that jumps gets a pencil ring and your guess.</li>
+      <li><b>Check.</b> A third plate of the field settles every ring. Asteroids jump far, flaws vanish, Planet X creeps a few millimetres.</li></ol>
+      <p>Coffee sharpens, sleep restores, and the notebook is the only memory. The moon ruins plates when it is bright.</p>
+      <button id="howto-ok" class="primary">Got it</button></div>`);
+    document.body.appendChild(box); $('#howto-ok').onclick = () => { box.remove(); if (then) then(); };
+  }
   // light settings: sound, music, dome view
   function settings() {
     const old = $('#settings'); if (old) { old.remove(); return; }
@@ -607,6 +623,7 @@ const Game = (() => {
     box.appendChild(row('Sound', () => !Prefs.get('muted'), v => { if (!!Prefs.get('muted') === v) Audio_.toggleMute(); }));
     box.appendChild(row('Music', () => Prefs.get('music') !== false, v => { Prefs.set('music', v); Audio_.setMusic(v); }));
     box.appendChild(row('3D dome view', () => !Prefs.get('flatChart'), v => Prefs.set('flatChart', !v)));
+    const ht = el('button', '', 'How the search works'); ht.onclick = () => { box.remove(); howTo(); }; box.appendChild(ht);
     const cr = el('button', '', 'Credits'); cr.onclick = () => { box.remove(); Dome3D.unmount(); credits(); }; box.appendChild(cr);
     const close = el('button', 'primary', 'Close'); close.onclick = () => box.remove(); box.appendChild(close);
     document.body.appendChild(box);

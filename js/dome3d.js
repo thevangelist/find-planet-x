@@ -217,8 +217,8 @@ const Dome3D = (() => {
     if (state.target) { const tg = state.target; let dy = Math.atan2(Math.sin(tg.az - state.yaw), Math.cos(tg.az - state.yaw)), dp = tg.alt - state.pitch;
       const step = 12 * R * dt, m = Math.hypot(dy, dp); if (m < 0.002) { state.yaw = tg.az; state.pitch = tg.alt; state.target = null; } else { state.yaw += dy / m * Math.min(step, m); state.pitch += dp / m * Math.min(step, m); } }
     // slow slew while the mouse is held; slow-motion keys for fine pointing
-    if (state.slew) { const dx = state.slew.x - state.slew.x0, dy = state.slew.y - state.slew.y0, m = Math.hypot(dx, dy);
-      if (m > 12) { const rate = clamp((m - 12) / 220, 0, 1) * 7 * R; state.yaw += dx / m * rate * dt; state.pitch = clamp(state.pitch - dy / m * rate * dt, -5 * R, 89 * R); } }
+    if (state.goal) { const gl = state.goal; let dy = Math.atan2(Math.sin(gl.yaw - state.yaw), Math.cos(gl.yaw - state.yaw)), dp = gl.pitch - state.pitch; const m = Math.hypot(dy, dp);
+      const step = Math.min(m, 40 * R * dt); if (m < 0.0005) state.goal = null; else { state.yaw += dy / m * step; state.pitch += dp / m * step; } }
     const fine = 1.5 * R * dt * (state.fov / 55);
     if (state.keys.l) state.yaw -= fine; if (state.keys.r) state.yaw += fine; if (state.keys.u) state.pitch = Math.min(89 * R, state.pitch + fine); if (state.keys.d) state.pitch = Math.max(-5 * R, state.pitch - fine);
     const box = renderer.domElement.parentElement.getBoundingClientRect(); const w = Math.round(box.width), h = Math.round(box.height);
@@ -240,18 +240,18 @@ const Dome3D = (() => {
     [21, 23, 1, 3].forEach(h => { const b = el('button', h === opts.hour ? 'primary' : '', `${String(h).padStart(2, '0')}:00`); b.onclick = () => opts.onHour(h); bar.appendChild(b); });
     const flat = el('button', '', 'Flat chart'); flat.style.marginLeft = 'auto'; bar.appendChild(flat); flat.onclick = () => opts.onFlat();
     overlay = el('div', 'coords'); wrap.appendChild(overlay);
-    const hint = el('div', 'hint', 'hold the mouse and pull to slew the tube, slowly · arrows or W A S D for fine pointing · wheel zooms · the frame is one plate'); wrap.appendChild(hint);
+    const hint = el('div', 'hint', 'Drag the sky to turn the telescope. Arrows or W A S D for fine pointing. Wheel zooms.'); wrap.appendChild(hint);
     build(view, opts);
-    // slewing: hold the mouse and pull; the tube turns slowly toward that direction until you let go
-    state.slew = null; state.keys = {};
-    view.addEventListener('pointerdown', e => { state.target = null; state.slew = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY }; view.setPointerCapture(e.pointerId); });
-    view.addEventListener('pointermove', e => { if (state.slew) { state.slew.x = e.clientX; state.slew.y = e.clientY; } });
-    const stopSlew = () => { state.slew = null; }; view.addEventListener('pointerup', stopSlew); view.addEventListener('pointercancel', stopSlew);
+    // grab the sky and drag it: the tube follows the hand with a little mass behind it
+    state.drag = null; state.keys = {}; state.goal = null;
+    view.addEventListener('pointerdown', e => { state.target = null; state.drag = { x: e.clientX, y: e.clientY, yaw: state.yaw, pitch: state.pitch }; view.setPointerCapture(e.pointerId); });
+    view.addEventListener('pointermove', e => { if (!state.drag) return; const k = (state.fov / 55) * 0.0022; state.goal = { yaw: state.drag.yaw + (e.clientX - state.drag.x) * k, pitch: clamp(state.drag.pitch - (e.clientY - state.drag.y) * k, -5 * R, 89 * R) }; });
+    const stopDrag = () => { state.drag = null; }; view.addEventListener('pointerup', stopDrag); view.addEventListener('pointercancel', stopDrag);
     view.addEventListener('wheel', e => { e.preventDefault(); state.fov = clamp(state.fov + e.deltaY * 0.03, 20, 75); }, { passive: false });
     const pick = () => { const cur = current(); if (cur.alt < 25) { toast('Too low. Below the pines.', 2000); return; } opts.onPick(cur.ra, cur.dec); };
     state.pick = pick;
     const KEYS = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd' };
-    onKey = e => { if (e.key === 'Enter') pick(); const k = KEYS[e.key]; if (k) { e.preventDefault(); state.target = null; if (!state.keys[k]) Audio_.play('telescope_click', 0.3, 5); state.keys[k] = true; } };
+    onKey = e => { if (e.key === 'Enter') pick(); const k = KEYS[e.key]; if (k) { e.preventDefault(); state.target = null; state.goal = null; if (!state.keys[k]) Audio_.play('telescope_click', 0.3, 5); state.keys[k] = true; } };
     onKeyUp = e => { const k = KEYS[e.key]; if (k) state.keys[k] = false; };
     window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKeyUp);
     render();
