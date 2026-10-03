@@ -14,7 +14,7 @@ const Blink = (() => {
           <div id="blink-mode">Mounting the plates…</div>
           <div id="blink-left"></div>
           <div id="blink-side">
-            <button id="btn-leave" class="primary">Leave the machine &nbsp;<span class="kbd">Esc</span></button>
+            <button id="btn-leave" class="primary">Done blinking &nbsp;<span class="kbd">Esc</span></button>
             <h3>Plate pair</h3>
             <div id="pair-info"></div>
             <canvas id="plate-map" width="270" height="220"></canvas>

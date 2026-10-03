@@ -206,7 +206,7 @@ const Game = (() => {
     LOCS.forEach(([id, name]) => { const b = el('button', id === locOf(S.loc) ? 'on' : '', name); b.onclick = () => goTo(id); n.appendChild(b); });
     // the two things he does besides the work
     const today = Astro.key(S.t);
-    const bed = el('button', '', 'Turn in'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; n.appendChild(bed);
+    const bed = el('button', '', 'Sleep'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; n.appendChild(bed);
     // coffee sits with the condition it fixes, on the right
     const old = $('#hud-coffee'); if (old) old.remove();
     const cof = el('button', '', 'Coffee'); cof.id = 'hud-coffee'; cof.title = 'Sharp for ninety minutes, then a dip. 20 min.'; cof.onclick = () => { Audio_.play('coffee_pour', 0.5); S.focus = clamp(S.focus + 0.35, 0, 1); S.coffeeAt = S.clock; if (S.ate !== today) { S.ate = today; S.energy = clamp(S.energy + 0.12, 0, 1); } tick(20); toast('Coffee and bread at the stove. Sharp for an hour or so.', 2500); save(); hud($('#hud-place').textContent); }; $('#hud').appendChild(cof);
@@ -357,10 +357,10 @@ const Game = (() => {
   function comparator() {
     const ub = unblinked();
     const lines = [pick(TEXT.afternoon)];
-    const acts = ub.slice(0, 2).map(pr => ({ label: `Blink: ${pairName(pr)}`, sub: `${Astro.fmtShort(pr.a.t)} to ${Astro.fmtShort(pr.b.t)} · ${pr.days} days${pr.third ? ' · third plate available' : ''}`, disabled: S.focus < 0.12, fn: () => blink(pr) }));
+    const acts = ub.slice(0, 2).map(pr => ({ label: `Blink ${pairName(pr)}`, sub: `${Astro.fmtShort(pr.a.t)} to ${Astro.fmtShort(pr.b.t)} · ${pr.days} days${pr.third ? ' · third plate available' : ''}`, disabled: S.focus < 0.12, fn: () => blink(pr) }));
     const mism = pairs().filter(p => p.mismatch && !S.blinked[p.key]).length; if (mism) lines.push(`${mism} pair${mism > 1 ? 's' : ''} whose labels match but whose star fields do not. A mislabelled plate somewhere.`);
     const open = pairs().filter(pr => S.blinked[pr.key] && S.suspects.some(s => s.pair === pr.key && !s.verdict));
-    if (!ub.length) open.slice(0, 2).forEach(pr => acts.push({ label: `Re-examine: ${pairName(pr)}`, sub: `${Astro.fmtShort(pr.a.t)} to ${Astro.fmtShort(pr.b.t)} · ${S.suspects.filter(s => s.pair === pr.key && !s.verdict).length} unchecked${pr.third ? ' · third plate available' : ' · needs a third plate'}`, disabled: S.focus < 0.12, fn: () => blink(pr) }));
+    if (!ub.length) open.slice(0, 2).forEach(pr => acts.push({ label: `Check ${pairName(pr)}`, sub: `${Astro.fmtShort(pr.a.t)} to ${Astro.fmtShort(pr.b.t)} · ${S.suspects.filter(s => s.pair === pr.key && !s.verdict).length} unchecked${pr.third ? ' · third plate available' : ' · needs a third plate'}`, disabled: S.focus < 0.12, fn: () => blink(pr) }));
     const firstOk = acts.find(a => !a.disabled); if (firstOk) firstOk.primary = true;
     if (!ub.length) { lines.push('No pairs. A pair is two developed plates of one field with the same label, 1 to 14 nights apart.');
       const dev = S.plates.filter(p => p.developed && !p.ruined), prs = pairs(); const lone = dev.filter(p => !prs.some(x => x.a === p || x.b === p));
@@ -373,9 +373,9 @@ const Game = (() => {
     const w = Astro.weather(S.t, 23), can = w.ok && Astro.moonDark(S.t);
     // no pair yet: the obvious next step is the second plate of the newest lone field
     const lone = !ub.length ? S.plates.filter(p => p.label && !p.ruined && p.developed && !pairs().some(x => x.a === p || x.b === p) && Astro.key(p.t) !== Astro.key(S.t)).sort((a, b) => b.t - a.t)[0] : null;
-    if (lone && (can || isDark() && w.ok)) acts.push({ label: `Expose the field of No. ${lone.id} again`, primary: true, sub: `${Astro.fieldStr(lone.label.ra, lone.label.dec)} · ${Astro.nearestRegion(lone.label.ra, lone.label.dec).name}. ${isDark() ? 'The telescope turns there.' : 'At dusk the telescope turns there.'}`, fn: () => { S.slewTo = { ra: lone.label.ra, dec: lone.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); } });
-    acts.push({ label: isDark() ? 'Dome' : 'Wait for dark', sub: isDark() ? 'Expose plates.' : can ? 'Clear tonight. The dome at dusk.' : 'No plates tonight.', primary: !acts.some(a => a.primary) && (isDark() || can), fn: () => { if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo(can || isDark() ? 'dome' : 'comparator'); } });
-    if (!ub.length && !can) acts.push({ label: 'Turn in', sub: 'Nothing waits. Sleep to the next clear night.', primary: !acts.some(a => a.primary), fn: () => sleep(1) });
+    if (lone && (can || isDark() && w.ok)) acts.push({ label: `Expose No. ${lone.id} again`, primary: true, sub: `${Astro.fieldStr(lone.label.ra, lone.label.dec)} · ${Astro.nearestRegion(lone.label.ra, lone.label.dec).name}. ${isDark() ? 'The telescope turns there.' : 'At dusk the telescope turns there.'}`, fn: () => { S.slewTo = { ra: lone.label.ra, dec: lone.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); } });
+    acts.push({ label: isDark() ? 'Expose' : 'Expose at dusk', sub: isDark() ? 'Up in the dome.' : can ? 'Clear tonight.' : 'No plates tonight.', primary: !acts.some(a => a.primary) && (isDark() || can), fn: () => { if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo(can || isDark() ? 'dome' : 'comparator'); } });
+    if (!ub.length && !can) acts.push({ label: 'Sleep', sub: 'Nothing waits. To the next clear night.', primary: !acts.some(a => a.primary), fn: () => sleep(1) });
     if (!isDark() && !ub.length && can) lines.push(`Tonight: ${wxLine(S.t, 23)} Moon ${Math.round(Astro.moonIllum(S.t) * 100)} %.`);
     panelScene('comparator.jpg', 'Comparator room', lines, acts, { task: ub.length ? `Blink ${ub.length} pair${ub.length > 1 ? 's' : ''}.` : S.focus < 0.12 ? 'Eyes done. Rest.' : 'No pairs to blink.' });
   }
@@ -517,19 +517,19 @@ const Game = (() => {
 
   // ---------- dome ----------
   function dome() {
-    if (dawn()) return panelScene('walk.jpg', 'Dome', ['Grey in the east. The stars are going.'], [{ label: 'Turn in', primary: true, sub: 'He sleeps until the afternoon.', fn: () => sleep(1) }], { task: 'Dawn. Shut the slit.' });
+    if (dawn()) return panelScene('walk.jpg', 'Dome', ['Grey in the east. The stars are going.'], [{ label: 'Sleep', primary: true, sub: 'Until the afternoon.', fn: () => sleep(1) }], { task: 'Dawn. Shut the slit.' });
     S.hour = isDark() ? hourOf(S.clock) : 21;
     if (S.slewTo) { const tgt = S.slewTo; for (const h of [21, 23, 1, 3]) { if (HOUR_CLOCK[h] < S.clock) continue; const alt = Astro.altitude(tgt.ra, tgt.dec, Astro.lst(S.t, h + (h < 12 ? 24 : 0))); if (alt >= 28) { if (HOUR_CLOCK[h] > S.clock) { S.clock = HOUR_CLOCK[h]; tick(0); toast(`Waited until ${String(h).padStart(2, '0')}:00 for the field to rise.`, 3500); } S.hour = h; break; } } }
     const w = Astro.weather(S.t, S.hour), dark = Astro.moonDark(S.t);
-    if (!isDark()) return panelScene('walk.jpg', 'Dome', ['Daylight. The slit is shut, the tube covered.', `Tonight: ${wxLine(S.t, 23)}`], [{ label: 'Wait for dark', sub: 'Up here, in the cold.', primary: true, fn: () => { S.clock = Math.max(S.clock, 1155); tick(0); dome(); } }, { label: 'Comparator room', sub: 'Blink the plate pairs.', fn: () => goTo('comparator') }], { task: 'Nothing to expose until dark.' });
+    if (!isDark()) return panelScene('walk.jpg', 'Dome', ['Daylight. The slit is shut, the tube covered.', `Tonight: ${wxLine(S.t, 23)}`], [{ label: 'Wait for dark', sub: 'Up here, in the cold.', primary: true, fn: () => { S.clock = Math.max(S.clock, 1155); tick(0); dome(); } }, { label: 'Blink', sub: unblinked().length ? `${unblinked().length} pair${unblinked().length > 1 ? 's' : ''} waiting.` : 'Nothing waits at the comparator.', fn: () => goTo('comparator') }], { task: 'Nothing to expose until dark.' });
     const flatPref = Prefs.get('flatChart') || !Dome3D.available();
     const prs = pairs(); const labelled = S.plates.filter(p => !p.ruined).map(p => { const pr = prs.find(x => x.a === p || x.b === p); return { ra: p.ra, dec: p.dec, id: p.id, labelled: !!p.label, paired: !!pr, partner: pr ? (pr.a === p ? pr.b.id : pr.a.id) : null }; });
     const note = !w.ok ? `${wxLine(S.t, S.hour)} Nothing to expose.` : !dark ? 'The moon lights the sky. Faint objects drown in it.' : '';
     const panel = panelScene('plate_loading.jpg', 'Dome', [`${Astro.tempC(S.t)} °C. ${wxLine(S.t, S.hour)}`, note || 'Every frame is a plate you exposed. Red ones have labels. Double frames are pairs.'],
-      note ? [{ label: 'Go home', primary: true, sub: unblinked().length || undeveloped().length ? 'Sleep. Tomorrow, the darkroom and the comparator.' : 'Sleep until the next clear, dark evening.', fn: () => sleep(1) },
-              { label: 'Comparator room', sub: unblinked().length ? 'Pairs are waiting.' : 'Nothing there tonight.', fn: () => goTo('comparator') }]
-           : [{ label: flatPref ? 'Click a field on the chart' : 'Expose here', primary: true, sub: flatPref ? 'One frame is one plate.' : 'Turn the telescope first.', disabled: flatPref, fn: () => Dome3D.pick() },
-              { label: 'Comparator room', sub: 'Blink the plate pairs.', fn: () => goTo('comparator') }], { region: '', task: note ? 'No exposures tonight.' : flatPref ? 'Pick a field on the chart.' : 'Turn the telescope, then expose.' });
+      note ? [{ label: 'Sleep', primary: true, sub: unblinked().length || undeveloped().length ? 'Sleep. Tomorrow, the darkroom and the comparator.' : 'Sleep until the next clear, dark evening.', fn: () => sleep(1) },
+              { label: 'Blink', sub: unblinked().length ? `${unblinked().length} pair${unblinked().length > 1 ? 's' : ''} waiting.` : 'Nothing waits at the comparator.', fn: () => goTo('comparator') }]
+           : [{ label: flatPref ? 'Click a field on the chart' : 'Expose', primary: true, sub: flatPref ? 'One frame is one plate.' : 'Turn the telescope first.', disabled: flatPref, fn: () => Dome3D.pick() },
+              { label: 'Blink', sub: unblinked().length ? `${unblinked().length} pair${unblinked().length > 1 ? 's' : ''} waiting.` : 'Nothing waits at the comparator.', fn: () => goTo('comparator') }], { region: '', task: note ? 'No exposures tonight.' : flatPref ? 'Pick a field on the chart.' : 'Turn the telescope, then expose.' });
     if (note) { if (!w.ok && Astro.weather(S.t, 2).ok && dark && S.hour < 12 === false) panel.querySelector('.menu').prepend(Object.assign(el('button', 'primary', 'Wait for it to clear<small>It may open up after midnight.</small>'), { onclick: () => { S.clock = Math.max(S.clock, HOUR_CLOCK[1]); tick(0); dome(); } })); return; }
     panel.style.maxWidth = '380px'; if (!flatPref) panel.parentElement.classList.add('dome-room');
     const pick_ = (ra, dec) => { Dome3D.unmount(); expose(ra, dec); };
@@ -560,9 +560,9 @@ const Game = (() => {
     await wait(1500);
     if (!res.ruined) await labelPlate(plate);
     panelScene('walk.jpg', 'Dome', [res.ruined ? 'The plate is ruined. The stars trailed into lines.' : 'The plate is in its holder. The fingers are gone.', 'The night is still long.'],
-      [{ label: 'To the darkroom', primary: !!undeveloped().length, sub: `Develop ${undeveloped().length} plate${undeveloped().length === 1 ? '' : 's'} now, while the dome cools.`, disabled: !undeveloped().length, fn: () => goTo('darkroom') },
-       { label: 'Another exposure', sub: dawn() ? 'Dawn is coming.' : `Point somewhere else. It is ${hhmm(S.clock)}.`, disabled: res.ruined || dawn(), fn: dome },
-       { label: 'Turn in', primary: !undeveloped().length, sub: 'Sleep until the afternoon.', fn: () => sleep(1) }], { task: res.ruined ? 'Plate lost.' : dawn() ? 'Dawn. Turn in.' : 'Plate done. The night is long.' });
+      [{ label: 'Develop', primary: !!undeveloped().length, sub: `Develop ${undeveloped().length} plate${undeveloped().length === 1 ? '' : 's'} now, while the dome cools.`, disabled: !undeveloped().length, fn: () => goTo('darkroom') },
+       { label: 'Expose again', sub: dawn() ? 'Dawn is coming.' : `Point somewhere else. It is ${hhmm(S.clock)}.`, disabled: res.ruined || dawn(), fn: dome },
+       { label: 'Sleep', primary: !undeveloped().length, sub: 'Until the afternoon.', fn: () => sleep(1) }], { task: res.ruined ? 'Plate lost.' : dawn() ? 'Dawn. Turn in.' : 'Plate done. The night is long.' });
   }
   // the plate sleeve is labelled by hand; what is written is what the plate will be known by
   function labelPlate(plate) {
@@ -576,7 +576,7 @@ const Game = (() => {
       const form = el('div', 'label-form', `<label>RA <input id="lb-ra" value="${pre.ra}" autocomplete="off"></label><label>Dec <input id="lb-dec" value="${pre.dec}" autocomplete="off"></label>`);
       panel.insertBefore(form, panel.querySelector('.menu'));
       const menu = panel.querySelector('.menu');
-      const write = el('button', 'primary', 'Write it on the sleeve'); const skip = el('button', '', 'Leave it unlabelled<small>Nobody will know what it shows.</small>');
+      const write = el('button', 'primary', 'Label'); const skip = el('button', '', 'Leave it unlabelled<small>Nobody will know what it shows.</small>');
       menu.appendChild(write); menu.appendChild(skip);
       const ra = $('#lb-ra'), dec = $('#lb-dec'); ra.focus(); ra.select();
       const submit = () => { const r = Astro.parseRA(ra.value), d = Astro.parseDec(dec.value); if (r == null || d == null) { toast('Write RA as hours and minutes, Dec as degrees.', 2500); return; }

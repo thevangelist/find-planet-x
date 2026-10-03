@@ -12,7 +12,7 @@ const Expose = (() => {
       const fit = () => { c.width = window.innerWidth; c.height = window.innerHeight; }; fit(); window.addEventListener('resize', fit);
       const SEC_PER_MIN = 0.14, total = opts.minutes;   // an hour of guiding in about eight seconds
       let minutes = 0, pos = { x: 0, y: 0 }, vel = { x: 0, y: 0 }, errSec = 0, t0 = performance.now(), last = t0, phase = Math.random() * 6, running = true, lastLine = -8;
-      const inner = 16, ruinAt = 4; let nextGust = 0.9 + Math.random() * 1.2; let meteor = null, nextMeteor = Math.random() < 0.08 ? 1.5 + Math.random() * 5 : Infinity;   // a meteor on one exposure in twelve, now and then a bright one
+      const inner = 18, ruinAt = 5; let nextGust = 0.9 + Math.random() * 1.2; let meteor = null, nextMeteor = Math.random() < 0.08 ? 1.5 + Math.random() * 5 : Infinity;   // a meteor on one exposure in twelve, now and then a bright one
       const FOV = 2.2, cosd = Math.cos((opts.dec || 0) * Math.PI / 180);
       const real = (typeof BRIGHT_STARS !== 'undefined' && opts.ra != null) ? BRIGHT_STARS.map(s => { let dra = (s[0] - opts.ra); if (dra > 12) dra -= 24; if (dra < -12) dra += 24; return { x: 0.5 - dra * 15 * cosd / FOV, y: 0.5 - (s[1] - opts.dec) / FOV, m: Math.max(0.2, (6 - s[2]) / 6) }; }).filter(s => s.x > 0 && s.x < 1 && s.y > 0 && s.y < 1) : [];
       const rr = rng(hashStr('ep' + (opts.ra || 0).toFixed(2) + (opts.dec || 0).toFixed(1)));
@@ -38,7 +38,7 @@ const Expose = (() => {
         const drive = { x: Math.sin(phase) * 9, y: Math.cos(phase * 0.6) * 4 };
         // calm guiding, then a jolt: the drive catches, a gust hits the dome, a hand on the rail. Correct it, then it is quiet again.
         const wk = (opts.wind ? 1.6 : 1) * (opts.tired ? 1.4 : 1);
-        if (minutes * SEC_PER_MIN >= nextGust) { nextGust += (opts.wind ? 1.2 : 1.8) + Math.random() * 1.2; const a = Math.random() * Math.PI * 2, k = (14 + Math.random() * 14) * wk; vel.x += Math.cos(a) * k; vel.y += Math.sin(a) * k; Audio_.play('breath_cold', 0.2); }
+        if (minutes * SEC_PER_MIN >= nextGust) { nextGust += (opts.wind ? 1.2 : 1.8) + Math.random() * 1.2; const a = Math.random() * Math.PI * 2, k = (10 + Math.random() * 10) * wk; vel.x += Math.cos(a) * k; vel.y += Math.sin(a) * k; Audio_.play('breath_cold', 0.2); }
         vel.x += (Math.random() - .5) * 4 * wk * dt + 0.9 * dt; vel.y += (Math.random() - .5) * 4 * wk * dt + 0.4 * dt;
         vel.x *= 0.985; vel.y *= 0.985; pos.x += vel.x * dt; pos.y += vel.y * dt;
         const sx = pos.x + drive.x * 0.3, sy = pos.y + drive.y * 0.3, off = Math.hypot(sx, sy);
@@ -46,7 +46,7 @@ const Expose = (() => {
         if (off > inner) errSec += dt;
         if (errSec > ruinAt) { toast('The guide star drifted for too long. The stars have trailed into lines.', 4000); return end(true); }
         if (minutes >= total) { toast('Exposure complete. Shutter closed, plate into the holder.', 3500); Audio_.play('glass_plate_set', 0.5); return end(false); }
-        if (minutes - lastLine > 18) { lastLine = minutes; showLine(TEXT.cold[Math.floor(Math.random() * TEXT.cold.length)]); if (Math.random() < .5) Audio_.play('breath_cold', 0.25); }
+        if (minutes - lastLine > 25) { lastLine = minutes; if (Math.random() < .5) Audio_.play('breath_cold', 0.2); }
         // draw eyepiece
         const W = c.width, H = c.height, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.34;
         g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
