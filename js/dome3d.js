@@ -40,18 +40,36 @@ const Dome3D = (() => {
         const rift = Math.exp(-((gal.b - 2) * (gal.b - 2)) / (2 * 2.2 * 2.2)) * Math.exp(-((gal.l - 32) * (gal.l - 32)) / (2 * 28 * 28)); I *= 1 - 0.75 * rift;
         I = Math.min(1, I); if (I < 0.02) continue;
         const k = (j * W + i) * 4, warm = Math.exp(-(dl * dl) / (2 * 30 * 30));
-        px[k] = 185 + 45 * warm; px[k + 1] = 190 + 20 * warm; px[k + 2] = 215 - 25 * warm; px[k + 3] = Math.round(I * 150); } }
-    g.putImageData(img, 0, 0); lastMW = c; const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t;
+        px[k] = 185 + 45 * warm; px[k + 1] = 190 + 20 * warm; px[k + 2] = 215 - 25 * warm; px[k + 3] = Math.round(I * 120); } }
+    g.putImageData(img, 0, 0); lastMW = c; const t = new THREE.CanvasTexture(c); t.flipY = false; t.wrapS = THREE.RepeatWrapping; return t;   // row 0 is the horizon below, no flip
   }
-  function pointCloud(items, color, lst, { sizeOf, alphaOf }) {
-    const pos = [], size = [], alpha = [];
-    items.forEach(it => { const p = altAz(it.ra, it.dec, lst); const v = dir(p.alt, p.az).multiplyScalar(SKY); pos.push(v.x, v.y, v.z); size.push(sizeOf(it)); alpha.push(alphaOf(it)); });
+  // star colour from B-V: blue-white at -0.2, white near 0.4, yellow at 0.8, orange past 1.3. Subtle, as the eye sees it.
+  const bvColor = ci => { const t = clamp((ci + 0.2) / 1.7, 0, 1); return [0.78 + 0.22 * t, 0.86 + 0.08 * (1 - Math.abs(t - 0.4) * 1.5), 1.0 - 0.32 * t]; };
+  function pointCloud(items, color, lst, { sizeOf, alphaOf, colorOf }) {
+    const pos = [], size = [], alpha = [], cols = [];
+    items.forEach(it => { const p = altAz(it.ra, it.dec, lst); const v = dir(p.alt, p.az).multiplyScalar(SKY); pos.push(v.x, v.y, v.z); size.push(sizeOf(it)); alpha.push(alphaOf(it)); const c = colorOf ? colorOf(it) : null; cols.push(...(c || [1, 1, 1])); });
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('size', new THREE.Float32BufferAttribute(size, 1)); geo.setAttribute('alpha', new THREE.Float32BufferAttribute(alpha, 1));
+    geo.setAttribute('size', new THREE.Float32BufferAttribute(size, 1)); geo.setAttribute('alpha', new THREE.Float32BufferAttribute(alpha, 1)); geo.setAttribute('tint', new THREE.Float32BufferAttribute(cols, 3));
     const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color(color) } },
-      vertexShader: 'attribute float size; attribute float alpha; varying float vA; void main(){ vA = alpha; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = size; gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'uniform vec3 col; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; if (d > 1.0) discard; float a = (1.0 - d * d) * vA; gl_FragColor = vec4(col, a); }' });
+      vertexShader: 'attribute float size; attribute float alpha; attribute vec3 tint; varying float vA; varying vec3 vT; void main(){ vA = alpha; vT = tint; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = size; gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform vec3 col; varying float vA; varying vec3 vT; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; if (d > 1.0) discard; float a = (1.0 - d * d) * vA; gl_FragColor = vec4(col * vT, a); }' });
     return new THREE.Points(geo, mat);
+  }
+  // a soft glow sprite: nebulae, galaxies, moonlight, planet halos
+  function glowSprite(w, h, rgb, alpha, core = 0.1) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256; const g = c.getContext('2d');
+    g.translate(128, 128); g.scale(1, h / w);
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, 120); gr.addColorStop(0, `rgba(${rgb},${alpha})`); gr.addColorStop(core, `rgba(${rgb},${alpha * 0.8})`); gr.addColorStop(0.5, `rgba(${rgb},${alpha * 0.3})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 120, 0, 7); g.fill();
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.scale.set(w, w, 1); return sp;
+  }
+  // the moon with its phase drawn, and its light on the sky
+  function moonSprite(ill, waxing, size) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#1a1b20'; g.beginPath(); g.arc(64, 64, 40, 0, 7); g.fill();
+    g.fillStyle = '#e8e4d8'; g.beginPath(); const k = Math.cos(ill * Math.PI);   // terminator as an ellipse
+    g.save(); g.translate(64, 64); if (waxing) g.scale(-1, 1); g.beginPath(); g.arc(0, 0, 40, -Math.PI / 2, Math.PI / 2, true); g.ellipse(0, 0, 40 * Math.abs(k), 40, 0, Math.PI / 2, -Math.PI / 2, k < 0); g.fill(); g.restore();
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sp.scale.set(size, size, 1); return sp;
   }
   function labelSprite(text, color, dot = true) {
     const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
@@ -106,21 +124,33 @@ const Dome3D = (() => {
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.domElement.id = 'dome3d'; container.appendChild(renderer.domElement);
     const lst = state.lst;
     // stars: catalogue, faint filler, Milky Way
-    scene.add(pointCloud(BRIGHT_STARS.map(s => ({ ra: s[0], dec: s[1], m: s[2] })), '#efece4', lst, { sizeOf: s => Math.max(2, (6 - s.m) * 1.6), alphaOf: s => Math.min(1, 0.35 + (5.6 - s.m) * 0.2) }));
+    scene.add(pointCloud(BRIGHT_STARS.map(s => ({ ra: s[0], dec: s[1], m: s[2], ci: s[3] ?? 0.6 })), '#f4f1ea', lst, { sizeOf: s => Math.max(2, (6 - s.m) * 1.7), alphaOf: s => Math.min(1, 0.35 + (5.6 - s.m) * 0.2), colorOf: s => bvColor(s.ci) }));
     const r = rng(1930), faint = [], mw = [];
     for (let i = 0; i < 7000; i++) faint.push({ ra: r() * 24, dec: Math.asin(r() * 2 - 1) / R });
     for (let i = 0; i < 9000; i++) { const p = galRaDec(r() * 360, gauss(r) * 6); mw.push(p); }
     scene.add(pointCloud(faint, '#d8d5cc', lst, { sizeOf: () => 1.6, alphaOf: () => 0.35 }));
-    scene.add(pointCloud(mw, '#cfd3e0', lst, { sizeOf: () => 2.0, alphaOf: () => 0.07 }));
-    const mwSphere = new THREE.Mesh(new THREE.SphereGeometry(SKY - 40, 64, 32), new THREE.MeshBasicMaterial({ map: milkyWayTexture(lst), transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    scene.add(pointCloud(mw, '#cfd3e0', lst, { sizeOf: () => 2.2, alphaOf: () => 0.12 }));
+    const mwSphere = new THREE.Mesh(new THREE.SphereGeometry(SKY - 40, 64, 32), new THREE.MeshBasicMaterial({ map: milkyWayTexture(lst), transparent: true, opacity: 0.55, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending }));
     scene.add(mwSphere);
     // ecliptic
     scene.add(skyLine(Array.from({ length: 181 }, (_, i) => { const e = eclRaDec(i * 2); const p = altAz(e.ra, e.dec, lst); return dir(p.alt, p.az).multiplyScalar(SKY - 10); }), '#d6685c', true));
+    // nebulae, galaxies and clusters at their catalogue size and place
+    Sky.DSO.forEach(o => { const a = altAz(o[0], o[1], lst); if (a.alt < -0.05) return; const pos = dir(a.alt, a.az).multiplyScalar(SKY - 35);
+      const w = Math.max(6, o[2] / 60 * (SKY / 57.3) * 1.3), h = Math.max(6, o[3] / 60 * (SKY / 57.3) * 1.3), k = o[6];
+      if (o[5] === 'gal' || o[5] === 'neb') { const sp = glowSprite(w, h, o[5] === 'neb' ? '214,196,200' : '200,205,220', 0.42 * k, 0.12); sp.position.copy(pos); sp.material.rotation = -o[4] * R; scene.add(sp); }
+      else { const rr = rng(hashStr('cl' + o[7])); const n = o[5] === 'glob' ? 120 : 40; const pts = []; for (let i = 0; i < n; i++) { const rad = (o[5] === 'glob' ? Math.abs(gauss(rr)) * 0.3 : Math.sqrt(rr())) * o[2] / 60 / 2, ang = rr() * Math.PI * 2; pts.push({ ra: o[0] + rad * Math.cos(ang) / 15 / Math.cos(o[1] * R), dec: o[1] + rad * Math.sin(ang) }); }
+        scene.add(pointCloud(pts, '#eef0ff', lst, { sizeOf: () => 1.8, alphaOf: () => 0.5 * k }));
+        if (o[5] === 'glob') { const sp = glowSprite(w * 0.8, w * 0.8, '225,222,215', 0.5 * k, 0.15); sp.position.copy(pos); scene.add(sp); } } });
     // planets, moon, landmarks
-    Astro.planets(opts.t).forEach(p => { const a = altAz(p.ra, p.dec, lst); const s = labelSprite(p.name, '#f0d9a0'); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 20)); scene.add(s); });
+    const PCOL = { Mercury: '220,210,190', Venus: '245,240,220', Mars: '235,160,120', Jupiter: '240,225,190', Saturn: '235,220,180', Uranus: '180,220,220', Neptune: '160,180,240' }, PMAG = { Mercury: 0.2, Venus: -4, Mars: 0.5, Jupiter: -2.3, Saturn: 0.7, Uranus: 5.7, Neptune: 7.8 };
+    Astro.planets(opts.t).forEach(p => { const a = altAz(p.ra, p.dec, lst); if (a.alt < -0.05) return; const pos = dir(a.alt, a.az).multiplyScalar(SKY - 20);
+      const bright = clamp((6 - PMAG[p.name]) / 10, 0.12, 1); const halo = glowSprite(6 + bright * 26, 6 + bright * 26, PCOL[p.name], 0.9, 0.18); halo.position.copy(pos); scene.add(halo);
+      const s = labelSprite(p.name, '#f0d9a0', false); s.position.copy(pos.clone().multiplyScalar(0.99)); s.position.y += 10; scene.add(s); });
     const ill = Astro.moonIllum(opts.t); if (ill > 0.03) { const NEW_MOON = Date.UTC(1930, 0, 29, 19, 7), SYN = 29.530589 * Astro.DAY, ph = ((((opts.t - NEW_MOON) % SYN) + SYN) % SYN) / SYN;
       const x = new Date(opts.t), doy = (opts.t - Date.UTC(x.getUTCFullYear(), 0, 1)) / Astro.DAY, sl = ((doy - 79.5) / 365.25) * 360, mp = eclRaDec(sl + ph * 360), a = altAz(mp.ra, mp.dec, lst);
-      const s = labelSprite(`Moon ${Math.round(ill * 100)}%`, '#e6e2d6'); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 20)); scene.add(s); }
+      if (a.alt > -0.05) { const pos = dir(a.alt, a.az).multiplyScalar(SKY - 20), waxing = ph < 0.5; const m = moonSprite(ill, waxing, 16); m.position.copy(pos); scene.add(m);
+        const hazy = opts.hazy ? 2.2 : 1; const gl = glowSprite(60 + ill * 160 * hazy, 60 + ill * 160 * hazy, '200,205,225', 0.18 + ill * 0.35, 0.05); gl.position.copy(pos.clone().multiplyScalar(0.98)); scene.add(gl);
+        const s = labelSprite(`Moon ${Math.round(ill * 100)}%`, '#e6e2d6', false); s.position.copy(pos.clone().multiplyScalar(0.97)); s.position.y -= 14; scene.add(s); } }
     [[0.712, 41.27, 'M31'], [5.588, -5.39, 'M42'], [3.79, 24.1, 'Pleiades'], [8.67, 19.98, 'M44'], [6.15, 24.33, 'M35'], [16.69, 36.46, 'M13'], [18.06, -24.38, 'M8'], [1.56, 30.66, 'M33'], [4.47, 15.87, 'Hyades']].forEach(([ra, dec, n]) => {
       const a = altAz(ra, dec, lst); if (a.alt < 0) return; const s = labelSprite(n, '#96bedc'); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 20)); scene.add(s); });
     STAR_NAMES.forEach(([ra, dec, n]) => { const m = BRIGHT_STARS.find(s => s[0] === ra && s[1] === dec); if (!m || m[2] > 1.0) return; const a = altAz(ra, dec, lst); if (a.alt < 0) return;
@@ -148,7 +178,7 @@ const Dome3D = (() => {
     // we stand at the eyepiece inside the dome; the dome turns to follow the tube
     scene.add(new THREE.AmbientLight(0x6b6456, 0.75)); const moon = new THREE.DirectionalLight(0x9fb0d0, 0.7); moon.position.set(30, 80, -20); scene.add(moon);
     const lamp = new THREE.PointLight(0xffd9a0, 0.35, 60); lamp.position.set(-8, 2, 6); scene.add(lamp);
-    const DR = 26, HW = DR * 0.30;   // slit of constant width, horizon to just past the zenith
+    const DR = 26, HW = DR * 0.38;   // slit of constant width, horizon to just past the zenith
     dome = new THREE.Group(); scene.add(dome); domeYaw = state.yaw;
     const inner = new THREE.MeshLambertMaterial({ color: '#7a7064', emissive: '#0c0a08', map: domeTexture(), side: THREE.DoubleSide });
     const inSlit = (x, y, z) => Math.abs(x) < HW && z < DR * 0.3;

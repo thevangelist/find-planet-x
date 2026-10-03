@@ -63,7 +63,7 @@ h1, h2, h3 { margin: 0; }
 #hud-nav button.quick { margin-left: 8px; border-color: var(--line); }
 #hud-nav button.quick:nth-of-type(5) { margin-left: var(--s4); }
 #hud-nav button.right { display: none; }
-#flow { position: absolute; bottom: 24px; left: 48px; right: 160px; z-index: 61; font: var(--t-meta); color: var(--paper-dim); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#flow { position: absolute; bottom: 24px; left: 48px; right: 180px; z-index: 61; font: var(--t-meta); color: var(--paper-dim); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #flow .step { display: inline; }
 #flow .step b { font-weight: 600; color: var(--paper-dim); }
 #flow .step.now b { color: var(--paper); }
@@ -77,9 +77,11 @@ h1, h2, h3 { margin: 0; }
 #audio-hint { right: 48px; }
 #audio-hint:hover, #skip-intro:hover { color: var(--paper); border-color: var(--paper-dim); background: rgba(19,17,6,.85); }
 #settings { position: absolute; right: 48px; bottom: 56px; z-index: 90; width: 260px; background: rgba(19,17,6,.95); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s2) var(--s3); box-shadow: var(--shadow); }
-#settings h3 { font: var(--t-h3); margin-bottom: var(--s1); }
-#settings button { display: block; width: 100%; }
-#settings button small { display: inline; margin-left: 8px; color: var(--paper-dim); }
+#settings h3 { font: var(--t-h3); margin-bottom: var(--s2); }
+#settings button { display: block; width: 100%; margin-bottom: var(--s1); }
+#settings button.row { display: flex; justify-content: space-between; align-items: center; }
+#settings button.row small { font: var(--t-ui); color: var(--paper-dim); }
+#settings { width: 300px; }
 
 /* pictures */
 .fade { animation: fadein 1.6s ease both; }
@@ -185,7 +187,8 @@ button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); 
 #blink-canvas { filter: url(#ca); }
 #blink-canvas.negative { filter: url(#ca) invert(1) contrast(1.05); }
 #blink-side { position: absolute; right: 48px; top: 72px; bottom: 64px; overflow-y: auto; width: 300px; z-index: 10; font: var(--t-meta); color: var(--paper); }
-#blink-side h3 { font: var(--t-label); color: var(--paper); margin: var(--s2) 0 var(--s1); }
+#blink-side h3 { font: var(--t-label); color: var(--paper-dim); margin: var(--s2) 0 var(--s1); }
+#blink-side #pair-info { color: var(--paper); }
 #blink-side button { display: block; padding: 6px 12px; margin: 4px 0; }
 #blink-side #btn-leave { width: 100%; margin-bottom: var(--s2); }
 #blink-side #btn-note { width: 100%; margin-top: 6px; }

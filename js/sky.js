@@ -183,5 +183,5 @@ const Sky = (() => {
     return { a: plates[0], b: plates[1], movers, spec, W, H };
   }
 
-  return { buildPair, PLATE_W_MM, PLATE_H_MM, PX_PER_MM, W, H, mmToPx, PLUTO };
+  return { buildPair, PLATE_W_MM, PLATE_H_MM, PX_PER_MM, W, H, mmToPx, PLUTO, DSO };
 })();

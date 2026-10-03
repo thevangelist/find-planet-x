@@ -190,7 +190,7 @@ const Game = (() => {
     const MAG = { Mercury: 0.2, Venus: -4.0, Mars: 0.5, Jupiter: -2.3, Saturn: 0.7, Uranus: 5.7, Neptune: 7.8 };
     const pA = Astro.planets(a.t), pB = Astro.planets(pr.b.t);
     const planets = pA.map((p, i) => ({ name: p.name, ra: p.ra, dec: p.dec, ra2: pB[i].ra, dec2: pB[i].dec, mag: MAG[p.name] })).filter(p => Astro.covers(a.ra, a.dec, p.ra, p.dec));
-    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, planets, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev],
+    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, planets, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev].map((v, i) => v === 'fogged' || ((i ? pr.b : a).haze && Astro.moonIllum((i ? pr.b : a).t) > 0.2) ? 'fogged' : v),
       asteroids: rr() < 0.3 ? 1 : rr() < 0.08 ? 2 : 0, density: 0.75 + rr() * 0.5,
       finds: FINDS.onPlates(a.ra, a.dec, a.t, pr.b.t).filter(f => !S.found_ids.includes(f.id)) };
   }
@@ -526,7 +526,7 @@ const Game = (() => {
       note ? [{ label: 'Go home', primary: true, sub: unblinked().length || undeveloped().length ? 'Sleep. Tomorrow, the darkroom and the comparator.' : 'Sleep until the next clear, dark evening.', fn: () => sleep(1) },
               { label: 'Comparator room', sub: unblinked().length ? 'Pairs are waiting.' : 'Nothing there tonight.', fn: () => goTo('comparator') }]
            : [{ label: flatPref ? 'Click a field on the chart' : 'Expose here', primary: true, sub: flatPref ? 'One frame is one plate.' : 'Turn the telescope first.', disabled: flatPref, fn: () => Dome3D.pick() },
-              { label: 'Comparator room', sub: 'Blink the plate pairs.', fn: () => goTo('comparator') }], { region: 'ecliptic', task: note ? 'No exposures tonight.' : flatPref ? 'Pick a field on the chart.' : 'Turn the telescope, then expose.' });
+              { label: 'Comparator room', sub: 'Blink the plate pairs.', fn: () => goTo('comparator') }], { region: '', task: note ? 'No exposures tonight.' : flatPref ? 'Pick a field on the chart.' : 'Turn the telescope, then expose.' });
     if (note) { if (!w.ok && Astro.weather(S.t, 2).ok && dark && S.hour < 12 === false) panel.querySelector('.menu').prepend(Object.assign(el('button', 'primary', 'Wait for it to clear<small>It may open up after midnight.</small>'), { onclick: () => { S.clock = Math.max(S.clock, HOUR_CLOCK[1]); tick(0); dome(); } })); return; }
     panel.style.maxWidth = '380px'; if (!flatPref) panel.parentElement.classList.add('dome-room');
     const pick_ = (ra, dec) => { Dome3D.unmount(); expose(ra, dec); };
@@ -534,7 +534,7 @@ const Game = (() => {
     if (flatPref) { SkyMap.render(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), onPick: pick_, onHour });
       if (Dome3D.available()) { const b = el('button', '', 'Dome view'); b.id = 'to-dome'; b.onclick = () => { Prefs.set('flatChart', false); dome(); }; $('#skymap-wrap .hours').appendChild(b); } }
     else { const btn = panel.querySelector('.menu button.primary'), sm = btn && btn.querySelector('small');
-      Dome3D.mount(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), onPick: pick_, onHour, onFlat: () => { Dome3D.unmount(); Prefs.set('flatChart', true); dome(); },
+      Dome3D.mount(scene(), { t: S.t, hour: S.hour, plates: labelled, pins: notePins(), hazy: w.state === 'haze', onPick: pick_, onHour, onFlat: () => { Dome3D.unmount(); Prefs.set('flatChart', true); dome(); },
         onPointing: (cur, ok) => { if (!sm) return; const sf = ok && sameField(cur.ra, cur.dec);
           sm.textContent = !ok ? 'Too low. Point above the pines.' : sf ? (Astro.key(sf.t) === Astro.key(S.t) ? `Field of plate No. ${sf.id}, exposed tonight. A pair needs another night.` : `Field of plate No. ${sf.id}, ${Astro.fmtShort(sf.t)}. Same label makes a pair.`) : `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · new field`; btn.disabled = !ok; } }); }
     if (S.slewTo && !flatPref) { const tgt = S.slewTo; setTimeout(() => Dome3D.slewTo(tgt.ra, tgt.dec), 600); } S.slewTo = null;
@@ -602,7 +602,7 @@ const Game = (() => {
   function settings() {
     const old = $('#settings'); if (old) { old.remove(); return; }
     const box = el('div', '', ''); box.id = 'settings';
-    const row = (label, get, set) => { const b = el('button', '', `${label}<small>${get() ? 'on' : 'off'}</small>`); b.onclick = () => { set(!get()); b.querySelector('small').textContent = get() ? 'on' : 'off'; }; return b; };
+    const row = (label, get, set) => { const b = el('button', 'row', `<span>${label}</span><small>${get() ? 'On' : 'Off'}</small>`); b.onclick = () => { set(!get()); b.querySelector('small').textContent = get() ? 'On' : 'Off'; }; return b; };
     box.appendChild(el('h3', '', 'Settings'));
     box.appendChild(row('Sound', () => !Prefs.get('muted'), v => { if (!!Prefs.get('muted') === v) Audio_.toggleMute(); }));
     box.appendChild(row('Music', () => Prefs.get('music') !== false, v => { Prefs.set('music', v); Audio_.setMusic(v); }));
