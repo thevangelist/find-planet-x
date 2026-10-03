@@ -241,6 +241,9 @@ const Dome3D = (() => {
       dome.rotation.y = -domeYaw;
       const moving = Math.abs(d) > 0.004; if (moving && !rumbling) { rumbling = true; Audio_.loop('dome_rotate', 0.3, 0.4); } if (!moving && rumbling) { rumbling = false; Audio_.stop('dome_rotate', 0.8); } }
     const cur = current(); const ok = cur.alt >= 25; frame.material.color.set(ok ? '#ffffff' : '#6e6760');
+    // the plate sits in the equatorial mount: its edges run along RA and Dec, so the frame turns with the sky, not the horizon
+    { const n = altAz(cur.ra, cur.dec + 0.5, state.lst), pN = dir(n.alt, n.az).multiplyScalar(SKY).project(camera); const c = dir(cur.alt * R, cur.az * R).multiplyScalar(SKY).project(camera);
+      const ang = Math.atan2((pN.y - c.y) * camera.aspect * 0 + (pN.y - c.y), (pN.x - c.x) * camera.aspect); frame.rotation.z = ang - Math.PI / 2; }
     overlay.textContent = `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · altitude ${Math.round(cur.alt)}° · azimuth ${Math.round(cur.az)}°${ok ? '' : ' · too low'}`;
     if (state.opts.onPointing && (!state.lastPt || now - state.lastPt > 200)) { state.lastPt = now; state.opts.onPointing(cur, ok); }
     renderer.render(scene, camera); raf = requestAnimationFrame(render);

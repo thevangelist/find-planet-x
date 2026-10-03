@@ -376,6 +376,7 @@ const Game = (() => {
     if (lone && (can || isDark() && w.ok)) acts.push({ label: `Expose No. ${lone.id} again`, primary: true, sub: `${Astro.fieldStr(lone.label.ra, lone.label.dec)} · ${Astro.nearestRegion(lone.label.ra, lone.label.dec).name}. ${isDark() ? 'The telescope turns there.' : 'At dusk the telescope turns there.'}`, fn: () => { S.slewTo = { ra: lone.label.ra, dec: lone.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); } });
     acts.push({ label: isDark() ? 'Expose' : 'Expose at dusk', sub: isDark() ? 'Up in the dome.' : can ? 'Clear tonight.' : 'No plates tonight.', primary: !acts.some(a => a.primary) && (isDark() || can), fn: () => { if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo(can || isDark() ? 'dome' : 'comparator'); } });
     if (!ub.length && !can) acts.push({ label: 'Sleep', sub: 'Nothing waits. To the next clear night.', primary: !acts.some(a => a.primary), fn: () => sleep(1) });
+    if (!ub.length && !undeveloped().length) acts.push({ label: 'Let a month pass', sub: 'Routine plates, nothing found. The sky turns.', fn: () => { S.t += Astro.DAY * 30; S.clock = 1739; S.energy = 1; S.focus = 1; waitForNight(); } });
     if (!isDark() && !ub.length && can) lines.push(`Tonight: ${wxLine(S.t, 23)} Moon ${Math.round(Astro.moonIllum(S.t) * 100)} %.`);
     panelScene('comparator.jpg', 'Comparator room', lines, acts, { task: ub.length ? `Blink ${ub.length} pair${ub.length > 1 ? 's' : ''}.` : S.focus < 0.12 ? 'Eyes done. Rest.' : 'No pairs to blink.' });
   }
@@ -580,15 +581,15 @@ const Game = (() => {
     const form = el('div', 'label-form', `<label>RA <input id="lb-ra" value="${pre.ra}" autocomplete="off"></label><label>Dec <input id="lb-dec" value="${pre.dec}" autocomplete="off"></label>`);
     panel.insertBefore(form, panel.querySelector('.menu'));
     const menu = panel.querySelector('.menu');
-    const again = el('button', dawn() ? '' : 'primary', `Label, expose again<small>${dawn() ? 'Dawn is coming.' : `It is ${hhmm(S.clock)}. The night is long.`}</small>`); again.disabled = dawn();
-    const dev = el('button', dawn() ? 'primary' : '', `Label, develop<small>${und} plate${und === 1 ? '' : 's'} to the darkroom.</small>`);
-    menu.appendChild(again); menu.appendChild(dev);
+    const dev = el('button', 'primary', `Label, develop<small>${und} plate${und === 1 ? '' : 's'} to the darkroom.</small>`);
+    const again = el('button', '', `Label, expose again<small>${dawn() ? 'Dawn is coming.' : `It is ${hhmm(S.clock)}. The night is long.`}</small>`); again.disabled = dawn();
+    menu.appendChild(dev); menu.appendChild(again);
     const ra = $('#lb-ra'), dec = $('#lb-dec'); ra.focus(); ra.select();
     const write = () => { const r = Astro.parseRA(ra.value), d = Astro.parseDec(dec.value); if (r == null || d == null) { toast('Write RA as hours and minutes, Dec as degrees.', 2500); return false; }
       plate.label = { ra: r, dec: d }; S.lastNote = S.t; Audio_.play('pencil_write', 0.5); tick(5); save(); return true; };
     again.onclick = () => { if (write()) dome(); };
     dev.onclick = () => { if (write()) goTo('darkroom'); };
-    [ra, dec].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') (dawn() ? dev : again).click(); }));
+    [ra, dec].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') dev.click(); }));
   }
 
   // ---------- discovery & epilogue ----------
