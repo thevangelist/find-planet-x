@@ -12,6 +12,11 @@ const FINDS = (() => {
     { id: 'haritina', kind: 'asteroid', prov: '1930 UB', name: '7101 Haritina', note: 'numbered only in the 1990s', t: d(1930, 10, 17), mag: 15.2 },
     { id: 'shawna', kind: 'asteroid', prov: '1930 XK', name: '4510 Shawna', note: 'named for a granddaughter', t: d(1930, 12, 13), mag: 15.1 },
     { id: 'alden', kind: 'asteroid', prov: '1930 YV', name: '2941 Alden', note: 'named for his son', t: d(1930, 12, 24), mag: 14.9 },
+    { id: 'patsy', kind: 'asteroid', prov: '1931 TS2', name: '3310 Patsy', note: 'named for his wife Patricia', t: d(1931, 10, 9), mag: 15.3 },
+    { id: 'kathleen', kind: 'asteroid', prov: '1931 FM', name: '3754 Kathleen', note: 'named for a family member', t: d(1931, 3, 16), mag: 15.5 },
+    { id: 'ellenbeth', kind: 'asteroid', prov: '1931 TC2', name: '3775 Ellenbeth', note: 'named for a family member', t: d(1931, 10, 6), mag: 15.6 },
+    { id: 'nicky', kind: 'asteroid', prov: '1931 TM3', name: '4755 Nicky', note: 'named for a family member', t: d(1931, 10, 6), mag: 15.7 },
+    { id: 'td3', kind: 'asteroid', prov: '1931 TD3', name: '8778 (1931 TD3)', note: 'numbered only decades later', t: d(1931, 10, 10), mag: 15.9 },
     { id: 'comet1931', kind: 'comet', prov: 'C/1931 AN1', name: 'Comet Tombaugh', note: 'his only comet, a faint diffuse smudge with a short tail', t: d(1931, 1, 25), mag: 13.5 },
     { id: 'tvcrv', kind: 'variable', prov: 'Tombaugh’s Star', name: 'TV Corvi', note: 'a dwarf nova: the same star, three magnitudes brighter on one plate', t: d(1931, 3, 23), mag: 16.5, region: 'crv', ra: 12.34, dec: -18.45 },
   ];

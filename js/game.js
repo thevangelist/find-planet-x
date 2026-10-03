@@ -413,7 +413,15 @@ const Game = (() => {
     const o = order();
     if (o.label === 'chaos') { const unl = S.plates.filter(p => !p.label && !p.ruined); if (unl.length && Math.random() < 0.5) { const lost = unl[Math.floor(Math.random() * unl.length)]; lost.ruined = true; chronicle(`An unlabelled plate is gone from the rack. Someone has filed it, or used it. Plate ${lost.id}, whatever it was.`); }
       else chronicle('Slipher stopped at the door and looked at the rack for a while. He said nothing. He did not need to.'); S.focus = clamp(S.focus - 0.2, 0, 1); }
-    else if (o.label === 'slipping' && Math.random() < 0.4) chronicle('Plates in the rack, pairs on the table, nothing written down. It is getting away from me.'); S.t += Astro.DAY * days; S.clock = short ? 900 : 780; S.energy = clamp(S.energy + (short ? 0.7 : 0.95), 0, 1); S.focus = clamp(S.focus + 0.6, 0, 1); S.hour = 23; S.coffeeAt = null; goTo('observatory'); }
+    else if (o.label === 'slipping' && Math.random() < 0.4) chronicle('Plates in the rack, pairs on the table, nothing written down. It is getting away from me.'); S.t += Astro.DAY * days; S.clock = short ? 900 : 780; S.energy = clamp(S.energy + (short ? 0.7 : 0.95), 0, 1); S.focus = clamp(S.focus + 0.6, 0, 1); S.hour = 23; S.coffeeAt = null; between(() => goTo('observatory')); }
+  // a quiet moment: one line, the date, no button
+  function between(then) {
+    hideHud(); const root = scene(); root.innerHTML = '';
+    const pic = el('div', 'picture dim slow-fade'); pic.style.backgroundImage = `url(assets/img/${pick(['desk.jpg', 'rest.jpg', 'walk.jpg', 'coffee.jpg'])})`; root.appendChild(pic);
+    const cap = el('div', 'caption'); cap.innerHTML = `<p class="on hint">${Astro.fmt(S.t)}</p><p class="on">${pick(TEXT.between)}</p>`; root.appendChild(cap);
+    const go = () => { document.removeEventListener('pointerdown', go); document.removeEventListener('keydown', go); clearTimeout(tm); then(); };
+    const tm = setTimeout(go, 3200); document.addEventListener('pointerdown', go); document.addEventListener('keydown', go);
+  }
   async function waitForNight() {
     let n = 0; let t = S.t;
     do { t += Astro.DAY; n++; } while (!(Astro.weather(t, 23).ok && Astro.moonDark(t)) && n < 30);

@@ -68,6 +68,11 @@ const TEXT = {
     'V. M. Slipher, director, hired a 22-year-old Kansas farm boy on the strength of his planet drawings. The farm boy is you. Exposures are one hour, guided by hand in an unheated dome. Development in the tray by the red lamp. Then the comparator, hundreds of thousands of stars a plate.',
     'Every plate gets a label on its sleeve, written by hand. A pair is two plates of one field, nights apart. A suspect is a ring in pencil. A third plate decides. Nothing is remembered that is not written here.',
   ],
+  // quiet moments between the nights
+  between: ['He sleeps until the afternoon. Nobody comes up the hill.', 'Snow on the roof of the dome. The pines do not move.', 'The coffee pot, the stove, the window. The same three things every day.',
+    'A letter from Burdett. The wheat is in. His father does not ask about the planet.', 'He walks down to Flagstaff for bread and walks back. Nobody asks what he does up there.', 'Slipher passes in the corridor and nods. That is the whole conversation.',
+    'He dreams of plates. Thousands of stars, none of them moving.', 'The stove ticks as it cools. Outside, the pines, and above them the thing he is looking for.', 'Sunday. He reads Lowell’s memoir on Planet X again and believes it a little less.',
+    'Kansas is a long way off. He has stopped counting the days.', 'The darkroom smells of acetic acid even with the door shut.', 'Two million stars, Slipher says. More by now.'],
   epilogue: [
     { img: ['flagstaff_theatre.jpg', 'rest.jpg'], lines: ['That evening he walks down into Flagstaff and goes to the movies.', 'The following weeks are spent confirming. More plates, more measurements, orbit calculations.', 'The object moves exactly as a distant planet should. Nearly a year of work. Over two million stars compared.'] },
     { img: ['slipher_office.jpg', 'desk.jpg'], lines: ['13 March 1930: Percival Lowell’s birthday, and the anniversary of the discovery of Uranus.', 'Lowell Observatory announces the discovery to the world.', 'More than a thousand name suggestions arrive. Cronus. Minerva. Percival.'] },
