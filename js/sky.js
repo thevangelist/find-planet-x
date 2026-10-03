@@ -85,6 +85,9 @@ const Sky = (() => {
     }
     // once in a while a faint, fast one crosses the field: on two plates it is far apart, easy to miss, a nuisance
     if (r() < 0.05) { const ang = r() * Math.PI * 2, dist = (40 + r() * 30) * spec.days / 6; m.push({ kind: 'asteroid', mag: 15.8 + r() * 0.8, x: (r() - 0.5) * (PLATE_W_MM - 100), y: (r() - 0.5) * (PLATE_H_MM - 100), dx: Math.cos(ang) * dist, dy: Math.sin(ang) * dist }); }
+    // the planets are on the plates too, bright and burnt in, and they move between the nights
+    (spec.planets || []).forEach(p => { const p0 = project(spec.center, p.ra * 15, p.dec).mm, p1 = project(spec.center, p.ra2 * 15, p.dec2).mm;
+      m.push({ kind: 'planet', name: p.name, mag: Math.max(p.mag, 3.5), x: p0.x, y: p0.y, dx: p1.x - p0.x, dy: p1.y - p0.y }); });
     if (spec.pluto) {
       const p0 = project(spec.center, PLUTO.ra, PLUTO.dec).mm;
       const k = (spec.plutoRate ?? 1) * spec.days;
@@ -153,6 +156,7 @@ const Sky = (() => {
           const tg = g.createLinearGradient(p.x, p.y, p.x + Math.cos(m.tail) * 60, p.y + Math.sin(m.tail) * 60); tg.addColorStop(0, 'rgba(220,218,210,.35)'); tg.addColorStop(1, 'rgba(0,0,0,0)');
           g.strokeStyle = tg; g.lineWidth = 7; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + Math.cos(m.tail) * 60, p.y + Math.sin(m.tail) * 60); g.stroke(); return; }
         const mag = (m.kind === 'variable' && idx ? m.magB : m.mag) + hz;
+        if (m.kind === 'planet' && m.mag < 6) { const rad = 14 + (6 - m.mag) * 6, gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad); gr.addColorStop(0, 'rgba(235,232,225,.95)'); gr.addColorStop(0.5, 'rgba(225,222,215,.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, rad, 0, 7); g.fill(); }
         const s = sprite(mag + soft); g.drawImage(s.c, p.x + off.x - s.size / 2, p.y + off.y - s.size / 2);
       });
       // grain

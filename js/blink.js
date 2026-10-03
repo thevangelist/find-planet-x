@@ -69,6 +69,7 @@ const Blink = (() => {
         const s = { m: best, x: mm.x, y: mm.y, kind: best ? best.kind : 'star', verdict: null, stroke: st, find: best && best.find ? best.find.id : null,
           shift: best && best.dx != null ? Math.hypot(best.dx, best.dy) : 0 };
         if (s.kind === 'star') s.verdict = 'a star, does not move';
+        if (s.kind === 'planet') s.verdict = `${best.name}. Known, and far too bright.`;
         if (s.kind === 'variable') s.verdict = 'same place on both plates, three magnitudes brighter on B: a variable star';
         suspects.push(s); Audio_.play('pencil_write', 0.5); renderSuspects();
       }

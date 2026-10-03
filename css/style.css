@@ -101,7 +101,7 @@ h1, h2, h3 { margin: 0; }
 .caption p.on { opacity: 1; transform: none; }
 .caption .quote { font: var(--t-h2); font-size: clamp(24px, 2.8vw, 40px); color: #fff; }
 .caption .hint { font: var(--t-meta); color: var(--paper-dim); margin-top: 1.4em; }
-#skip-intro { right: 156px; z-index: 80; background: var(--paper); color: var(--ink); border-color: var(--paper); font-size: 18px; padding: 14px 20px; }
+#skip-intro { left: 50%; right: auto; transform: translateX(-50%); z-index: 80; background: var(--paper); color: var(--ink); border-color: var(--paper); font-size: 16px; padding: 6px 14px; }
 #skip-intro:hover { background: #fff; color: var(--ink); border-color: #fff; }
 
 .textwall { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 8vh 12vw; }
@@ -118,8 +118,6 @@ h1, h2, h3 { margin: 0; }
 #title h2 { font: var(--t-label); color: var(--paper-dim); margin: var(--s1) 0 var(--s6); }
 #title .meta { font: var(--t-meta); color: var(--paper-dim); margin-top: var(--s4); }
 #title .brief { font: var(--t-body); color: var(--paper); max-width: 540px; margin: 0 0 var(--s4); }
-#title .credits-link { display: inline-block; margin-top: var(--s4); font: var(--t-meta); color: var(--paper-dim); cursor: pointer; }
-#title .credits-link:hover { color: var(--paper); }
 #title h2 { margin-bottom: var(--s3); }
 
 /* buttons */

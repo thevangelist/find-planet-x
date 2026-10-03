@@ -103,13 +103,12 @@ const Game = (() => {
       <div class="menu">
         ${has && !has.done ? `<button id="b-cont" class="primary">Continue<small>${Astro.fmt(has.t)}, ${has.plates.length} plates</small></button><button id="b-new">Begin again</button>` : `<button id="b-new" class="primary">Begin<small>January 1929. The train arrives at Flagstaff.</small></button>`}
       </div>
-      <a id="b-cred" class="credits-link">Credits</a>
+
       <p class="meta">${location.protocol === 'file:' ? 'Audio needs an http server: ./serve.sh' : ''}</p>
     </div></div>`);
     root.appendChild(t);
     $('#b-new').onclick = () => { Audio_.init(); if (has && !has.done && !confirm('Start over? The saved game will be lost.')) return; S = fresh(); intro(); };
     const bc = $('#b-cont'); if (bc) bc.onclick = () => { Audio_.init(); S = has; S.found_ids ??= []; S.clock ??= 450; S.loc ??= 'room'; S.energy ??= 1; Audio_.preload(['amb_dome', 'coffee_pour', 'liquid_pour', 'water_slosh']); day(); };
-    $('#b-cred').onclick = () => { Audio_.init(); credits(); };
   }
   async function credits() {
     const root = scene(); root.innerHTML = '';
@@ -188,7 +187,10 @@ const Game = (() => {
     const pluto = Astro.covers(a.ra, a.dec, Sky.PLUTO.ra / 15, Sky.PLUTO.dec);
     // Pluto's apparent motion: full retrograde speed at opposition, ~zero 6h away (near the stationary points)
     const diff = Astro.raDiff(a.ra, Astro.oppositionRA(a.t)), plutoRate = Math.cos(clamp(diff / 6, 0, 1) * Math.PI / 2);
-    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev],
+    const MAG = { Mercury: 0.2, Venus: -4.0, Mars: 0.5, Jupiter: -2.3, Saturn: 0.7, Uranus: 5.7, Neptune: 7.8 };
+    const pA = Astro.planets(a.t), pB = Astro.planets(pr.b.t);
+    const planets = pA.map((p, i) => ({ name: p.name, ra: p.ra, dec: p.dec, ra2: pB[i].ra, dec2: pB[i].dec, mag: MAG[p.name] })).filter(p => Astro.covers(a.ra, a.dec, p.ra, p.dec));
+    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, planets, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev],
       asteroids: rr() < 0.3 ? 1 : rr() < 0.08 ? 2 : 0, density: 0.75 + rr() * 0.5,
       finds: FINDS.onPlates(a.ra, a.dec, a.t, pr.b.t).filter(f => !S.found_ids.includes(f.id)) };
   }
@@ -544,7 +546,7 @@ const Game = (() => {
     Audio_.play('dome_rotate', 0.4); await wait(1200); Audio_.play('glass_plate_set', 0.5);
     const w = Astro.weather(S.t, S.hour);
     live = false;
-    const res = await Expose.run({ regionName: name, ra, dec, minutes: 60, tempC: Astro.tempC(S.t), wind: w.wind, haze: w.state === 'haze', tired: S.energy < 0.33 });
+    const res = await Expose.run({ regionName: name, ra, dec, planets: Astro.planets(S.t), minutes: 60, tempC: Astro.tempC(S.t), wind: w.wind, haze: w.state === 'haze', tired: S.energy < 0.33 });
     const plate = { id: S.nextId++, ra, dec, label: null, t: S.t, ruined: res.ruined, developed: false, haze: w.state === 'haze', wind: w.wind };
     live = true; S.plates.push(plate);
     tick(res.minutes + 15);
