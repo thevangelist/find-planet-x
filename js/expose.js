@@ -70,10 +70,10 @@ const Expose = (() => {
         g.strokeStyle = 'rgba(200,190,170,.35)'; g.lineWidth = 1;
         [[-inner, 0], [inner, 0]].forEach(([dx]) => { g.beginPath(); g.moveTo(cx + dx, cy - R); g.lineTo(cx + dx, cy + R); g.stroke(); });
         [[0, -inner], [0, inner]].forEach(([, dy]) => { g.beginPath(); g.moveTo(cx - R, cy + dy); g.lineTo(cx + R, cy + dy); g.stroke(); });
-        if (off > inner) { g.strokeStyle = 'rgba(200,190,170,.7)'; g.strokeRect(cx - inner, cy - inner, inner * 2, inner * 2); }
+
         g.restore();
         g.strokeStyle = '#1d1a14'; g.lineWidth = 10; g.beginPath(); g.arc(cx, cy, R + 5, 0, 7); g.stroke();
-        info.innerHTML = `<b>${opts.regionName}</b><br>exposure <b>${String(Math.floor(minutes)).padStart(2, '0')} / ${total} min</b><br>guide star ${off > inner ? '<b>outside the wires</b>' : 'between the wires'}<br>guiding error ${errSec.toFixed(1)} s<br>${opts.tempC} °C${opts.wind ? ' · wind shakes the dome' : ''}${opts.haze ? ' · thin cloud' : ''}<br><span style="opacity:.5">arrows or W A S D turn the tube · esc aborts</span>`;
+        info.innerHTML = `<b>${opts.regionName}</b><br>${String(Math.floor(minutes)).padStart(2, '0')} of ${total} minutes<br>${opts.tempC} °C${opts.wind ? ', wind' : ''}${opts.haze ? ', thin cloud' : ''}`;
         requestAnimationFrame(frame);
       }
       function showLine(t) { cap.innerHTML = `<p>${t}</p>`; requestAnimationFrame(() => cap.querySelector('p').classList.add('on')); setTimeout(() => { const p = cap.querySelector('p'); if (p) p.classList.remove('on'); }, 5000); }
