@@ -130,6 +130,8 @@ button:hover, .btn:hover { border-color: var(--accent); color: #fff; background:
 button:disabled { opacity: .5; cursor: default; }
 button.primary { background: var(--paper); border-color: var(--paper); color: var(--ink); font-size: 18px; padding: 16px 20px; }
 button.primary small { color: #4f4636; }
+button.primary .kbd { color: var(--ink); border-color: #4f4636; }
+#skip-intro .kbd { color: var(--ink); }
 button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); }
 .menu { display: flex; flex-direction: column; align-items: stretch; gap: var(--s1); }
 .menu button { width: 100%; }
@@ -287,3 +289,6 @@ button.primary:hover { background: #fff; border-color: #fff; color: var(--ink); 
 .dev-info .task { font: var(--t-h2); font-size: 28px; color: #fff; margin: 0 0 var(--s1); }
 .dev-info p { font: var(--t-body); margin: 0 0 var(--s2); }
 .dev-wrap button { width: 100%; }
+.dev-wrap button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.dev-wrap button.primary .kbd { color: #fff; border-color: rgba(255,255,255,.6); }
+.dev-wrap button.primary:hover { background: #e07a6e; border-color: #e07a6e; }
