@@ -121,7 +121,7 @@ const Sky = (() => {
   }
   function buildPair(spec) {
     const r = rng(hashStr(spec.seed));
-    const stars = starField(spec, r), nStars = stars.length / 3;
+    const stars = starField(spec, r), nStars = stars.length / 3, hz = spec.haze ? 0.7 : 0;
     const inPlate = mm => Math.abs(mm.x) < PLATE_W_MM / 2 && Math.abs(mm.y) < PLATE_H_MM / 2;
     const named = BRIGHT_STARS.map(s => ({ mm: project(spec.center, s[0] * 15, s[1]).mm, mag: s[2] })).concat(GEM_STARS.filter(s => s[2] > 5.2).map(s => ({ mm: project(spec.center, s[0], s[1]).mm, mag: s[2] })))
       .filter(s => inPlate(s.mm)).map(s => ({ ...mmToPx(s.mm), mag: s.mag }));
