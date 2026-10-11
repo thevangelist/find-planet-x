@@ -213,7 +213,9 @@ const Game = (() => {
   function nav() {
     const n = $('#hud-nav'); n.innerHTML = ''; n.classList.remove('hidden'); if (n.parentElement !== $('#hud')) $('#hud-focus').before(n);
     const next = nextLoc(), tip = suggestion();
-    LOCS.forEach(([id, name]) => { const b = el('button', (id === locOf(S.loc) ? 'on' : '') + (next === id && id !== locOf(S.loc) ? ' hint' : ''), name); b.title = next === id ? tip : ''; b.onclick = () => goTo(id); n.appendChild(b); });
+    const seen = S.seenPlates || [], fresh = S.plates.filter(p => !seen.includes(p.id)).length;
+    const COUNT = { darkroom: undeveloped().length, comparator: unblinked().length, plates: fresh };
+    LOCS.forEach(([id, name]) => { const b = el('button', (id === locOf(S.loc) ? 'on' : '') + (next === id && id !== locOf(S.loc) ? ' hint' : ''), name + (COUNT[id] ? `<i class="badge">${COUNT[id]}</i>` : '')); b.title = next === id ? tip : ''; b.onclick = () => goTo(id); n.appendChild(b); });
     // the body readout opens the status page
     const f = $('#hud-focus'); f.title = 'Status of the programme'; f.style.cursor = 'pointer'; f.onclick = () => goTo('status');
     // the two things he does besides the work
@@ -557,10 +559,11 @@ const Game = (() => {
   function gallery(openId) {
     hud('Plates'); nav(); S.loc = 'plates';
     const root = scene(); root.innerHTML = ''; const pic = el('div', 'picture dim'); pic.style.backgroundImage = 'url(assets/img/comparator.jpg)'; root.appendChild(pic);
-    const ps = S.plates.slice().sort((a, b) => b.t - a.t);
+    const ps = S.plates.slice().sort((a, b) => b.t - a.t), seen = S.seenPlates || [], fresh = new Set(ps.filter(p => !seen.includes(p.id)).map(p => p.id));
+    S.seenPlates = S.plates.map(p => p.id); save(); nav();
     const grid = el('div', 'gallery fade'); root.appendChild(grid);
     if (!ps.length) grid.appendChild(el('p', 'empty', 'No plates yet. Every exposure ends up here.'));
-    ps.forEach(p => { const card = el('div', 'plate-card' + (p.ruined ? ' ruined' : '')); const cv = Sky.thumb(plateSpec(p), 216); cv.classList.add('thumb'); card.appendChild(cv);
+    ps.forEach(p => { const card = el('div', 'plate-card' + (p.ruined ? ' ruined' : '') + (fresh.has(p.id) ? ' fresh' : '')); const cv = Sky.thumb(plateSpec(p), 216); cv.classList.add('thumb'); card.appendChild(cv);
       card.appendChild(el('div', 'cap', plateCaption(p))); card.onclick = () => gallery(p.id);
       const need = plateNeed(p); if (need) { card.appendChild(el('div', 'need', need.text));
         if (need.shoot) { const w = Astro.weather(S.t, 23), can = w.ok && Astro.moonDark(S.t); const b = el('button', 'secondary', need.shoot + `<small>${isDark() ? (can ? 'Tonight. The telescope turns there.' : 'Not tonight: ' + (w.ok ? 'moon' : 'weather') + '.') : (can ? 'At dusk the telescope turns there.' : 'Not tonight.')}</small>`); b.disabled = !can && !(isDark() && w.ok); b.onclick = e => { e.stopPropagation(); shootField(p); }; card.appendChild(b); } }
