@@ -20,11 +20,11 @@ const Game = (() => {
   // two plates Slipher exposed in March, developed and labelled: a pair to blink on the first day
   const SLIPHER = () => [{ id: 1, ra: 8.7, dec: 19, label: { ra: 8.7, dec: 19 }, t: Astro.d(1929, 3, 28), ruined: false, developed: true, slipher: true },
     { id: 2, ra: 8.7, dec: 19, label: { ra: 8.7, dec: 19 }, t: Astro.d(1929, 4, 2), ruined: false, developed: true, slipher: true }];
-  const fresh = () => ({ t: START, phase: 'morning', focus: 1, plates: SLIPHER(), blinked: {}, suspects: [], log: [], found: false, foundDate: null, nextId: 1, sessions: 0, done: false, found_ids: [], hour: 23, clock: 1155, loc: 'dome', energy: 1, nextId: 3 });
+  const fresh = () => ({ t: START, phase: 'morning', focus: 1, plates: SLIPHER(), blinked: {}, suspects: [], log: [], found: false, foundDate: null, sessions: 0, v: Model.SAVE_VERSION, done: false, found_ids: [], hour: 23, clock: 1155, loc: 'dome', energy: 1, nextId: 3 });
   // the world is washed out; each real find brings a little colour back, too slowly to notice
   const tone = () => { if (!S) return; const sat = Math.min(1, 0.84 + 0.025 * (S.found_ids || []).length + (S.found ? 0.1 : 0)); document.documentElement.style.setProperty('--sat', sat.toFixed(3)); };
   const save = () => { tone(); try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) {} };
-  const load = () => { try { return JSON.parse(localStorage.getItem(SAVE)); } catch (e) { return null; } };
+  const load = () => { try { return Model.migrate(JSON.parse(localStorage.getItem(SAVE))); } catch (e) { return null; } };
 
   const scene = () => $('#scene');
   function hud(place, region = '', extra = '') {
@@ -109,7 +109,7 @@ const Game = (() => {
     </div></div>`);
     root.appendChild(t);
     $('#b-new').onclick = () => { Audio_.init(); if (has && !has.done && !confirm('Start over? The saved game will be lost.')) return; S = fresh(); intro(); };
-    const bc = $('#b-cont'); if (bc) bc.onclick = () => { Audio_.init(); S = has; S.found_ids ??= []; S.clock ??= 450; S.loc ??= 'room'; S.energy ??= 1; Audio_.preload(['amb_dome', 'coffee_pour', 'liquid_pour', 'water_slosh']); day(); };
+    const bc = $('#b-cont'); if (bc) bc.onclick = () => { Audio_.init(); S = has; Audio_.preload(['amb_dome', 'coffee_pour', 'liquid_pour', 'water_slosh']); day(); };
   }
   async function credits() {
     const root = scene(); root.innerHTML = '';
@@ -155,38 +155,10 @@ const Game = (() => {
   // ---------- plates & pairs ----------
   // A plate knows where the telescope really pointed (ra, dec) and what the player wrote on its sleeve (label).
   // Only labels pair plates; the sky on the plate comes from the real pointing.
-  const SAME_FIELD = 4;
-  const plateName = p => p.label ? `${Astro.fieldStr(p.label.ra, p.label.dec)} · ${Astro.nearestRegion(p.label.ra, p.label.dec).name}` : 'unlabelled plate';
-  const pairName = pr => plateName(pr.a);
-  function pairOf(a, b) { if (a.t > b.t) [a, b] = [b, a]; const days = Math.round((b.t - a.t) / Astro.DAY);
-    const ps = S.plates.filter(p => p.developed && !p.ruined && p.label);
-    const third = ps.some(p => p !== a && p !== b && Astro.sep(p.label.ra, p.label.dec, a.label.ra, a.label.dec) <= SAME_FIELD && Astro.sep(p.ra, p.dec, a.ra, a.dec) <= SAME_FIELD);
-    return { key: `${a.id}-${b.id}`, a, b, days, third, mismatch: Astro.sep(a.ra, a.dec, b.ra, b.dec) > SAME_FIELD }; }
-  function pairs() {
-    const ps = S.plates.filter(p => p.developed && !p.ruined && p.label).sort((a, b) => a.t - b.t); const out = [];
-    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
-      const a = ps[i], b = ps[j], days = Math.round((b.t - a.t) / Astro.DAY);
-      if (days > 14) break;
-      if (days < 1 || Astro.sep(a.label.ra, a.label.dec, b.label.ra, b.label.dec) > SAME_FIELD) continue;
-      if (out.some(o => o.a === a)) break;   // one partner per plate: the next usable one
-      const mismatch = Astro.sep(a.ra, a.dec, b.ra, b.dec) > SAME_FIELD;
-      const third = ps.some(p => p !== a && p !== b && Astro.sep(p.label.ra, p.label.dec, a.label.ra, a.label.dec) <= SAME_FIELD && Astro.sep(p.ra, p.dec, a.ra, a.dec) <= SAME_FIELD);
-      out.push({ key: `${a.id}-${b.id}`, a, b, days, third, mismatch });
-    }
-    return out;
-  }
-  // labelled plates that have no partner yet and whose window (2 to 14 nights) is open tonight
-  function needsSecond() { const prs = pairs(); return S.plates.filter(p => p.label && !p.ruined && !prs.some(x => x.a === p || x.b === p))
-    .map(p => ({ p, days: Math.round((S.t - p.t) / Astro.DAY) })).filter(x => x.days >= 1 && x.days <= 14).sort((a, b) => b.days - a.days); }
-  const sameField = (ra, dec) => S.plates.filter(p => p.label && !p.ruined && Astro.sep(p.label.ra, p.label.dec, ra, dec) <= SAME_FIELD).sort((a, b) => a.t - b.t)[0];
-  // notes and plans that carry a position, e.g. "7h 20m +22 again", become pins on the sky
-  function notePins() {
-    const re = /(\d{1,2})h\s*(\d{1,2})m?\s*([+\-−]\s?\d{1,2}(?:\.\d)?)°?/;
-    const out = [];
-    (S.log || []).forEach(e => { const m = e.text && e.text.match(re); if (m) out.push({ ra: (+m[1] + m[2] / 60) % 24, dec: parseFloat(m[3].replace('−', '-').replace(/\s/, '')), text: e.text.slice(0, 40) }); });
-    Object.entries(S.cal || {}).forEach(([k, v]) => { const m = v.match(re); if (m) out.push({ ra: (+m[1] + m[2] / 60) % 24, dec: parseFloat(m[3].replace('−', '-').replace(/\s/, '')), text: `${k.slice(5)}: ${v.slice(0, 36)}` }); });
-    return out.filter(p => !isNaN(p.dec));
-  }
+  // the programme as data lives in Model; these are the same names bound to the current state
+  const SAME_FIELD = Model.SAME_FIELD, plateName = Model.plateName, pairName = Model.pairName;
+  const pairOf = (a, b) => Model.pairOf(S, a, b), pairs = () => Model.pairs(S), needsSecond = () => Model.needsSecond(S);
+  const sameField = (ra, dec) => Model.sameField(S, ra, dec), notePins = () => Model.notePins(S);
   const fieldSeed = (ra, dec) => `f${ra.toFixed(1)}|${dec.toFixed(0)}`, fieldDensity = seed => 0.75 + rng(hashStr(seed))() * 0.5;
   function specFor(pr) {
     const a = pr.a, rr = rng(hashStr(pr.key)), seed = fieldSeed(a.ra, a.dec);
@@ -232,31 +204,7 @@ const Game = (() => {
     const cof = el('button', '', 'Coffee'); cof.id = 'hud-coffee'; cof.title = 'Sharp for ninety minutes, then a dip. 20 min.'; cof.onclick = () => { Audio_.play('coffee_pour', 0.5); S.focus = clamp(S.focus + 0.35, 0, 1); S.coffeeAt = S.clock; if (S.ate !== today) { S.ate = today; S.energy = clamp(S.energy + 0.12, 0, 1); } tick(20); toast('Coffee and bread at the stove. Sharp for an hour or so.', 2500); save(); hud($('#hud-place').textContent); }; $('#hud').appendChild(cof);
     flow();
   }
-  // Order of the programme: plates without labels, a backlog of unexamined pairs, suspects never checked,
-  // and a logbook left silent all pull it down. When it slips, plates get lost and Slipher notices.
-  function order() {
-    const unl = S.plates.filter(p => !p.label && !p.ruined).length, backlog = unblinked().length, open = S.suspects.filter(s => !s.verdict).length;
-    const lastNote = S.lastNote ?? S.t, silent = (S.t - lastNote) / Astro.DAY;
-    const score = clamp(1 - 0.12 * unl - 0.04 * Math.max(0, backlog - 4) - 0.06 * open - (silent > 14 ? 0.2 : 0), 0, 1);
-    return { score, unl, backlog, open, silent, label: score > .7 ? 'good order' : score > .35 ? 'slipping' : 'chaos' };
-  }
-  // the field the player is working on: the pair with open suspects, else the newest labelled plate's field
-  function fieldSteps() {
-    const prs = pairs(), live = S.plates.filter(p => !p.ruined && p.label);
-    const pr = prs.find(x => S.blinked[x.key] && S.suspects.some(s => s.pair === x.key && !s.verdict)) || prs.filter(x => !S.blinked[x.key]).sort((a, b) => b.b.t - a.b.t)[0];
-    const p = pr ? pr.a : live.sort((a, b) => b.t - a.t)[0];
-    if (!p) return null;
-    const name = Astro.nearestRegion(p.label.ra, p.label.dec).name, blinked = pr && S.blinked[pr.key], open = pr ? S.suspects.filter(s => s.pair === pr.key && !s.verdict).length : 0;
-    const judged = pr ? S.suspects.filter(s => s.pair === pr.key && s.verdict).length : 0;
-    const n = pr ? Math.round((S.t - pr.b.t) / Astro.DAY) : Math.round((S.t - p.t) / Astro.DAY);
-    return { name, steps: [
-      ['1st plate', `No. ${p.id}`, true],
-      ['2nd plate', pr ? `No. ${pr.b.id}, ${pr.days} nights later` : n < 1 ? 'another night' : n > 14 ? 'too late, start over' : 'same field, tonight', !!pr],
-      ['Blink', blinked ? `${judged + open} marked` : pr ? 'at the comparator' : '', !!blinked],
-      ['3rd plate', pr && pr.third ? 'ready' : blinked ? (open ? 'expose it' : '') : '', !!(pr && pr.third)],
-      ['Check', blinked ? (open ? `${open} open` : judged ? 'settled' : 'nothing marked') : '', !!(blinked && !open && judged)],
-    ] };
-  }
+  const order = () => Model.order(S), fieldSteps = () => Model.fieldSteps(S);
   function flow() {
     const f = $('#flow'); f.innerHTML = ''; f.classList.remove('hidden');
     const o = order(), und = undeveloped().length;
@@ -305,8 +253,7 @@ const Game = (() => {
     list.forEach(a => { const b = el('button', a.primary ? 'primary' : 'secondary', a.label + (a.sub ? `<small>${a.sub}</small>` : '')); b.disabled = !!a.disabled; b.onclick = a.fn; menu.appendChild(b); });
     return panel;
   }
-  const undeveloped = () => S.plates.filter(p => !p.developed && !p.ruined);
-  const unblinked = () => pairs().filter(p => !S.blinked[p.key] && !p.mismatch);
+  const undeveloped = () => Model.undeveloped(S), unblinked = () => Model.unblinked(S);
   function wxLine(t, hour) { const w = Astro.weather(t, hour); const k = w.state === 'storm' ? (w.summer ? 'stormSummer' : 'stormWinter') : w.state;
     const pool = TEXT.weather[k].filter(s => !(w.wind && /still/.test(s))); return pick(pool.length ? pool : TEXT.weather[k]) + (w.wind && w.ok ? ' ' + TEXT.weather.wind : ''); }
   // what is waiting, in order of what Tombaugh would do next
@@ -485,20 +432,7 @@ const Game = (() => {
     panelScene('walk.jpg', 'Mars Hill', [`${n} days pass. ${pick(TEXT.morning)}`], [{ label: 'Up to the dome', primary: true, fn: () => goTo('dome') }], { task: 'An observing night at last.' });
   }
   // The logbook is an A6 notebook: fixed lines per page, entries in the order they were written, flipped by hand.
-  const PAGE_LINES = 19, LINE_CHARS = 34;
-  const SKETCH_LINES = 8;
-  const lineCount = txt => txt.split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / LINE_CHARS)), 0);
-  function notebookPages() {
-    const entries = [];
-    S.plates.filter(p => !p.ruined || p.label).forEach(p => entries.push({ t: p.t + 1, kind: 'plate', d: `No. ${p.id} · ${Astro.fmtShort(p.t)} ${new Date(p.t).getUTCFullYear()}${p.slipher ? ' · V. M. S.' : ''}`, text: `${p.label ? Astro.fieldStr(p.label.ra, p.label.dec) : 'no label'} · 60 min · ${p.haze ? 'thin cloud' : 'clear'}${p.wind ? ', wind' : ''}${p.developed ? ' · dev.' : ''}${p.ruined ? ' · lost' : ''}` }));
-    S.log.forEach((e, i) => entries.push({ t: Date.parse(e.d.split(',')[0]) || 0, i, kind: e.sketch ? 'sketch' : 'note', d: e.d, text: e.text, src: e }));
-    entries.sort((a, b) => a.t - b.t || (a.i ?? 0) - (b.i ?? 0));
-    const pages = [[]]; let used = 0;
-    entries.forEach(e => { const n = e.kind === 'sketch' ? 1 + SKETCH_LINES : 1 + lineCount(e.text); if (used + n > PAGE_LINES && pages[pages.length - 1].length) { pages.push([]); used = 0; } pages[pages.length - 1].push(e); used += n; });
-    // the writing box (date, two lines, buttons) needs four lines at the foot of the last page
-    if (used > PAGE_LINES - 4) pages.push([]);
-    return pages;
-  }
+  const SKETCH_LINES = Model.SKETCH_LINES, notebookPages = () => Model.notebookPages(S);
   // pencil on paper: strokes are kept as normalised points on the entry
   function sketchPad(cv, entry) {
     const g = cv.getContext('2d'), W = cv.width, H = cv.height;
@@ -561,15 +495,7 @@ const Game = (() => {
     return [`<b>No. ${p.id}</b> · ${Astro.fmtShort(p.t)}`, p.ruined ? 'ruined: the guide star drifted, the stars trailed' : p.label ? `${Astro.fieldStr(p.label.ra, p.label.dec)} · ${Astro.nearestRegion(p.label.ra, p.label.dec).name}` : 'no label',
       p.ruined ? '' : !p.developed ? 'in the rack, undeveloped' : `developed ${p.dev || 'good'}${pr ? ` · pair with No. ${other.id}${S.blinked[pr.key] ? ', blinked' : ''}` : ''}`].filter(Boolean).join('<br>');
   }
-  function plateNeed(p) {
-    if (p.ruined || !p.label) return null;
-    const pr = pairs().find(x => x.a === p || x.b === p), n = Math.round((S.t - p.t) / Astro.DAY);
-    if (!pr) { if (!p.developed) return null; return n < 1 ? { text: 'second plate: another night' } : n > 14 ? { text: `${n} nights ago, too old for a pair. Start the field again.`, shoot: 'Expose again' } : { text: `needs a second plate (${14 - n} night${14 - n === 1 ? '' : 's'} left)`, shoot: 'Expose the second plate' }; }
-    if (!S.blinked[pr.key]) return { text: 'pair ready: blink it' };
-    const open = S.suspects.filter(s => s.pair === pr.key && !s.verdict).length;
-    if (open && !pr.third) return { text: `${open} suspect${open > 1 ? 's' : ''} open: needs a third plate`, shoot: 'Expose the third plate' };
-    return null;
-  }
+  const plateNeed = p => Model.plateNeed(S, p);
   function shootField(p) { S.slewTo = { ra: p.label.ra, dec: p.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); }
   function gallery(openId) {
     hud('Plates'); nav(); S.loc = 'plates';

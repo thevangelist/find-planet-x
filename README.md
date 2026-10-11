@@ -38,6 +38,15 @@ Along the way you can also find a few of Tombaugh's real asteroids, comets and v
 | Plates | `←` `→` previous / next plate, `Esc` closes |
 | Anywhere | `M` sound on / off, Settings bottom right |
 
+## Background
+
+This is an experiment as much as a game: how far a small team of tools gets with a historical
+subject and no budget. The code was written with Claude (Fable 5.1) in Claude Code. The scene
+images were generated with Midjourney from a prompt sheet in `MIDJOURNEY.md`. The sounds are CC0
+recordings from Freesound, BigSoundBank and OpenGameArt, plus ambience synthesised in the browser.
+The discovery plates and the 1931 portrait of Tombaugh come from Wikimedia Commons, the bright
+stars from the HYG catalogue. Everything is listed in [CREDITS.md](CREDITS.md).
+
 ## Run locally
 
 ```
@@ -49,9 +58,19 @@ beyond three.js from a CDN for the 3D dome (the flat chart works without it).
 
 `?pluto` in the URL paints Planet X big and red on both charts, for testing the discovery.
 
+## Tests
+
+```
+npm test
+```
+
+Node's own test runner, no dependencies. `test/` loads the plain-script modules into a sandbox and
+checks the astronomy, the pairing and tracker logic in `js/model.js`, the save migration and the
+star-field generator.
+
 ## Project
 
-- `js/game.js` day loop, places, notebook, calendar, plate gallery
+- `js/game.js` day loop, places, notebook, calendar, plate gallery · `js/model.js` pairs, needs, order, pages, save migration
 - `js/sky.js` plate rendering: star fields, movers, grain
 - `js/blink.js` the comparator, `js/expose.js` guiding, `js/dome3d.js` the dome, `js/skymap.js` the chart
 - `js/astro.js` time, sky, weather, Moon, planets · `js/finds.js` Tombaugh's real discoveries

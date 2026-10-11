@@ -26,7 +26,7 @@ const Audio_ = (() => {
   }
   function init() {
     if (started) return;
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }   // no audio on this browser: the game stays silent
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ctx.destination);
     started = true;
     buildSynths();

@@ -1,0 +1,5 @@
+{
+  "name": "find-planet-x",
+  "private": true,
+  "scripts": { "test": "node --test test/", "serve": "./serve.sh" }
+}
