@@ -495,6 +495,8 @@ const Game = (() => {
     entries.sort((a, b) => a.t - b.t || (a.i ?? 0) - (b.i ?? 0));
     const pages = [[]]; let used = 0;
     entries.forEach(e => { const n = e.kind === 'sketch' ? 1 + SKETCH_LINES : 1 + lineCount(e.text); if (used + n > PAGE_LINES && pages[pages.length - 1].length) { pages.push([]); used = 0; } pages[pages.length - 1].push(e); used += n; });
+    // the writing box (date, two lines, buttons) needs four lines at the foot of the last page
+    if (used > PAGE_LINES - 4) pages.push([]);
     return pages;
   }
   // pencil on paper: strokes are kept as normalised points on the entry
