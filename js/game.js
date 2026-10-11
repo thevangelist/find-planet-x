@@ -511,6 +511,13 @@ const Game = (() => {
     const up = () => { if (st) { st = null; save(); } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
     draw();
   }
+  // the book scales to the space between the top bar and the page controls, and again when the window changes
+  function fitBook(book) {
+    const cs = getComputedStyle(document.documentElement), top = parseFloat(cs.getPropertyValue('--top')), foot = parseFloat(cs.getPropertyValue('--foot')), gutter = parseFloat(cs.getPropertyValue('--gutter'));
+    const h = (window.visualViewport ? window.visualViewport.height : innerHeight);
+    book.style.setProperty('--book', Math.min(1, (h - top - foot - 64) / 600, (innerWidth - 2 * gutter) / 840).toFixed(3));
+  }
+  window.addEventListener('resize', () => { const b = document.querySelector('.notebook'); if (b) fitBook(b); });
   function logbook(pageIdx) {
     const root = scene(); hud('Logbook'); nav(); S.loc = 'logbook';
     root.innerHTML = ''; const pic = el('div', 'picture dim'); pic.style.backgroundImage = 'url(assets/img/desk.jpg)'; root.appendChild(pic);
@@ -522,8 +529,7 @@ const Game = (() => {
       pg.querySelectorAll('canvas.sk').forEach(cv => sketchPad(cv, S.log[+cv.dataset.i]));
       return pg; };
     const book = el('div', 'notebook fade');
-    const cs = getComputedStyle(document.documentElement), top = parseFloat(cs.getPropertyValue('--top')), foot = parseFloat(cs.getPropertyValue('--foot')), gutter = parseFloat(cs.getPropertyValue('--gutter'));
-    book.style.setProperty('--book', Math.min(1, (innerHeight - top - foot - 48) / 580, (innerWidth - 2 * gutter) / 820).toFixed(3));
+    fitBook(book);
     book.appendChild(page(left, 'left')); book.appendChild(page(left + 1, 'right')); root.appendChild(book);
     const ctl = el('div', 'book-ctl', `<button id="pg-prev" ${left === 0 ? 'disabled' : ''}>Earlier pages</button><span>pages ${left + 1} and ${left + 2} of ${last + 1}</span><button id="pg-next" ${left + 2 > last ? 'disabled' : ''}>Later pages</button>`); root.appendChild(ctl);
     const flip = i => { Audio_.play('page_turn', 0.4, 3); logbook(i); };
