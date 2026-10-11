@@ -36,3 +36,4 @@ All audio below is CC0 / public domain. Credit is not required but is given with
 
 ## Star catalogue
 - Bright stars on the dome chart from the HYG Database v4.1 (David Nash, astronexus.com), CC BY-SA 4.0 compilation of Hipparcos, Yale BSC and Gliese – https://github.com/astronexus/HYG-Database
+- tombaugh_1931 – Clyde Tombaugh at the 13-inch astrograph, Lowell Observatory, 1931 (Wikimedia Commons, File:Clyde W. Tombaugh.jpeg) – used in the README banner (tools/banner.html)

@@ -61,7 +61,7 @@ const Audio_ = (() => {
     og.gain.setValueAtTime(vol * 0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t + len * 0.8);
     o.connect(og).connect(master); o.start(t); o.stop(t + len);
   }
-  function tick() { click(0.06, 2600, 0.015); }
+  function tick() { click(0.04, 900, 0.03); }
 
   // continuous beds, keyed by name; built lazily
   function synthBed(name) {
@@ -101,10 +101,10 @@ const Audio_ = (() => {
     } else if (name === 'stove' || name === 'drip') {
       // irregular ticks: iron cooling, or a drop into the sink
       let tm; const fire = () => { if (g.gain.value > 0.005) click(name === 'stove' ? 0.08 : 0.12, name === 'stove' ? 1800 + Math.random() * 2500 : 2800 + Math.random() * 800, name === 'stove' ? 0.015 : 0.05);
-        tm = setTimeout(fire, (name === 'stove' ? 0.4 + Math.random() * 3 : 2 + Math.random() * 6) * 1000); }; fire();
+        tm = setTimeout(fire, (name === 'stove' ? 2 + Math.random() * 9 : 5 + Math.random() * 14) * 1000); }; fire();
       nodes.push({ stop: () => clearTimeout(tm) });
     } else if (name === 'clock') {
-      const iv = setInterval(() => { if (g.gain.value > 0.01) tick(); }, 1000);
+      const iv = setInterval(() => { if (g.gain.value > 0.01) tick(); }, 2000);
       nodes.push({ stop: () => clearInterval(iv) });
     } else return null;
     return { gain: g, nodes, synth: true };
@@ -158,7 +158,8 @@ const Audio_ = (() => {
   let sprinkleTimer = null;
   function sprinkle(list, every = 18) {
     clearTimeout(sprinkleTimer);
-    const next = () => { sprinkleTimer = setTimeout(() => { const [n, v, k] = list[Math.floor(Math.random() * list.length)]; play(n, v, k || 1); next(); }, (every * (0.5 + Math.random())) * 1000); };
+    let last = -1;
+    const next = () => { sprinkleTimer = setTimeout(() => { let i; do { i = Math.floor(Math.random() * list.length); } while (list.length > 1 && i === last); last = i; const [n, v, k] = list[i]; play(n, v, k || 1); next(); }, (every * (0.4 + Math.random() * 1.2)) * 1000); };
     if (list.length) next();
   }
   function stopAll(fade = 2.5) { clearTimeout(sprinkleTimer); Object.keys(loops).forEach(n => stop(n, fade)); }

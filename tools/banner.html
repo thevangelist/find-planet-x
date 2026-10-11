@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="../css/style.css">
+<style>
+html,body{margin:0;width:1600px;height:680px;overflow:hidden;background:#0e0c06}
+#b{position:relative;width:1600px;height:680px;overflow:hidden;background:#0e0c06;font-family:'IBM Plex Sans',sans-serif}
+#port{position:absolute;left:0;top:0;width:1000px;height:680px;background:url(../assets/img/tombaugh_1931.jpg) 62% 12%/cover;filter:grayscale(1) sepia(.25) contrast(.85) brightness(.62) saturate(.7)}
+#port::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(14,12,6,.55) 0,rgba(14,12,6,.35) 36%,rgba(14,12,6,.9) 66%,#0e0c06 84%),linear-gradient(180deg,rgba(14,12,6,.3),rgba(14,12,6,0) 30%,rgba(14,12,6,.6) 100%)}
+#grain{position:absolute;inset:-50%;opacity:.09;pointer-events:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>")}
+#wash{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(214,196,160,.07) 40%,rgba(40,30,14,.5) 100%);pointer-events:none}
+.plate{position:absolute;top:88px;width:440px;height:440px;border:6px solid #e2dccb;box-shadow:6px 6px 9px rgba(0,0,0,.4),0 0 60px #000;background:#000 center/cover;filter:sepia(.18) contrast(.92) brightness(.95)}
+#pa{left:640px;background-image:url(plate_a.png)}#pb{left:1110px;background-image:url(plate_b.png)}
+.cap{position:absolute;top:548px;font:600 18px/1.4 'IBM Plex Sans';color:#cfc4ad}.cap small{display:block;font:400 15px/1.4 'IBM Plex Sans';color:#a0978a}
+#ca{left:646px}#cb{left:1116px}
+#t{position:absolute;left:64px;top:170px;width:520px;color:#cfc4ad}
+#t h1{font:700 62px/1.05 'IBM Plex Sans';color:#e7dfcb;margin:0 0 14px;letter-spacing:-.01em;text-shadow:0 2px 30px #000}
+#t h2{font:400 23px/1.4 'IBM Plex Sans';margin:0 0 18px;color:#cfc4ad}
+#t p{font:400 17px/1.5 'IBM Plex Sans';color:#a0978a;margin:0;max-width:430px}
+#t .tag{display:inline-block;margin-top:24px;padding:6px 12px;border:1px solid #6a6254;border-radius:3px;font:600 13px/1.4 'IBM Plex Sans';color:#d6685c;letter-spacing:.08em;text-transform:uppercase;background:rgba(14,12,6,.6)}
+#arrow{position:absolute;left:1086px;top:300px;color:#d6685c;font:600 14px/1.3 'IBM Plex Sans';text-align:center;width:36px}
+</style>
+<div id="b"><div id="port"></div>
+<div class="plate" id="pa"></div><div class="plate" id="pb"></div>
+<div class="cap" id="ca">Plate A · 23 January 1930<small>Lowell Observatory, 13-inch astrograph</small></div>
+<div class="cap" id="cb">Plate B · 29 January 1930<small>The arrow is Tombaugh's. The point moved 3.5 mm.</small></div>
+<div id="t"><h1>Find Planet X</h1><h2>Blink two glass plates.<br>Stars stay. One faint point moves.</h2><p>Mars Hill, 1929. Expose, label, develop, blink, check against a third plate. Find Pluto the way Clyde Tombaugh did.</p><span class="tag">Browser game · no install · real sky of 1930</span></div>
+<div id="wash"></div><div id="grain"></div></div>

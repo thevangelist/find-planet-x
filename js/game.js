@@ -272,7 +272,7 @@ const Game = (() => {
     ];
     steps.forEach(([name, sub, now, warn], i) => { if (i) f.appendChild(el('span', 'arrow', '·')); f.appendChild(el('span', 'step' + (now ? ' now' : '') + (warn ? ' warn' : ''), `<b>${name}</b> ${sub}`)); });
   }
-  function goTo(loc) { if (Blink.active) { Blink.abort(); return setTimeout(() => goTo(loc), 60); } Dome3D.unmount(); Audio_.stopAllExcept(['amb_dome'], 2); S.loc = loc; S.phase = phaseOf(S.clock); save(); ({ room: roomScene, darkroom, comparator, dome, logbook, status: observatory, observatory, calendar, plates: gallery })[loc](); }
+  function goTo(loc) { if (Blink.active) { Blink.abort(); return setTimeout(() => goTo(loc), 60); } Dome3D.unmount(); Audio_.stopAll(2); S.loc = loc; S.phase = phaseOf(S.clock); save(); ({ room: roomScene, darkroom, comparator, dome, logbook, status: observatory, observatory, calendar, plates: gallery })[loc](); }
   // the observatory is the comparator by day and the dome by night
   function observatory() { const w = Astro.weather(S.t, hourOf(Math.max(S.clock, 1260))); if (isDark() && w.ok && Astro.moonDark(S.t) && !(unblinked().length && S.focus >= 0.3 && S.clock < 1260)) return goTo('dome'); goTo('comparator'); }
   // the observatory: whatever is next in the pipeline
@@ -333,7 +333,7 @@ const Game = (() => {
       acts.push({ label: `Sketch ${planet ? planet.name : 'a planet'} at the 24-inch`, sub: 'Moonlight ruins plates. A pencil does not mind.', fn: () => { tick(90); S.focus = clamp(S.focus + 0.15, 0, 1); if (spend(0.06, 'room')) return; chronicle(planet ? TEXT.sketch[planet.name] : TEXT.sketch.none); Audio_.play('pencil_write', 0.5); toast('A page of the sketchbook filled.', 2200); save(); roomScene(); } }); }
     if (!isDark()) acts.push({ label: 'Wait for dark', sub: w.ok && dark ? 'Clear tonight.' : 'No plates tonight.', primary: !workNow, fn: () => { S.clock = Math.max(S.clock, 1155); tick(0); goTo(w.ok && dark ? 'dome' : 'room'); } });
     else acts.push({ label: 'Turn in', sub: nothingToDo ? 'Sleep through the dead days to the next clear night.' : 'Sleep until the afternoon.', primary: !workNow, fn: () => { if (!(w.ok && dark)) chronicle(w.ok ? TEXT.logAuto.moon : TEXT.logAuto.cloudy); sleep(1); } });
-    ['clock', 0.1, 'stove', 0.5, 'air', 0.3, 'drone', 0.08, 'wind', 0.06].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 3)); Audio_.sprinkle([['wood_floor_creak', 0.2, 3], ['chair_creak', 0.15], ['page_turn', 0.12, 3]], 24);
+    ['air', 0.3, 'drone', 0.08, 'wind', 0.06, 'rumble', 0.1].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 3)); Audio_.sprinkle([['wood_floor_creak', 0.18, 3], ['chair_creak', 0.12]], 40);
     panelScene(ph === 'afternoon' ? 'coffee.jpg' : 'desk.jpg', 'Home', lines, acts, { task: workNow ? 'Work is waiting.' : isDark() ? 'Nothing to do tonight.' : 'Nothing to do until dark.' });
   }
   function status() {
@@ -359,7 +359,7 @@ const Game = (() => {
   async function develop() {
     const und = undeveloped();
     hud('Darkroom'); $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden'); live = false;
-    ['safelight', 0.15, 'drip', 0.6, 'water', 0.25, 'air', 0.2, 'rumble', 0.15].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 2)); Audio_.sprinkle([['water_slosh', 0.15], ['liquid_pour', 0.1]], 18);
+    ['safelight', 0.15, 'water', 0.25, 'air', 0.2, 'rumble', 0.15].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 2)); Audio_.sprinkle([['water_slosh', 0.12]], 35);
     for (let i = 0; i < und.length; i++) {
       const p = und[i]; const result = await developOne(p, i + 1, und.length);
       p.developed = true; p.dev = result; p.devT = S.t; tick(20); S.energy = clamp(S.energy - 0.02, 0, 1);
@@ -422,7 +422,7 @@ const Game = (() => {
     if (!ub.length && !can) acts.push({ label: 'Sleep', sub: 'Nothing waits. To the next clear night.', primary: !acts.some(a => a.primary), fn: () => sleep(1) });
     if (!ub.length && !undeveloped().length) acts.push({ label: 'Let a month pass', sub: 'Routine plates, nothing found. The sky turns.', fn: () => skipDays(30) });
     if (!isDark() && !ub.length && can) lines.push(`Tonight: ${wxLine(S.t, 23)} Moon ${Math.round(Astro.moonIllum(S.t) * 100)} %.`);
-    ['clock', 0.08, 'air', 0.3, 'lamp', 0.5, 'drone', 0.07, 'wind', 0.05].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 3)); Audio_.sprinkle([['chair_creak', 0.2], ['wood_floor_creak', 0.15, 3], ['glass_plate_set', 0.12]], 20);
+    ['air', 0.3, 'lamp', 0.5, 'drone', 0.07, 'wind', 0.05].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 3)); Audio_.sprinkle([['chair_creak', 0.15], ['wood_floor_creak', 0.12, 3]], 40);
     panelScene('comparator.jpg', 'Comparator room', lines, acts, { task: ub.length ? `Blink ${ub.length} pair${ub.length > 1 ? 's' : ''}.` : S.focus < 0.12 ? 'Eyes done. Rest.' : 'No pairs to blink.' });
   }
   async function blink(pr) {
@@ -640,7 +640,7 @@ const Game = (() => {
         onPointing: (cur, ok) => { if (!sm) return; const sf = ok && sameField(cur.ra, cur.dec);
           sm.textContent = !ok ? 'Too low. Point above the pines.' : sf ? (Astro.key(sf.t) === Astro.key(S.t) ? `Field of plate No. ${sf.id}, exposed tonight. A pair needs another night.` : `Field of plate No. ${sf.id}, ${Astro.fmtShort(sf.t)}. Same label makes a pair.`) : `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · new field`; btn.disabled = !ok; } }); }
     if (S.slewTo && !flatPref) { const tgt = S.slewTo; setTimeout(() => Dome3D.slewTo(tgt.ra, tgt.dec), 600); } S.slewTo = null;
-    Audio_.play('dome_slit_open', 0.5); ['amb_dome', 0.22, 'wind', 0.16, 'air', 0.25, 'rumble', 0.3, 'drone', 0.06].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 5)); Audio_.sprinkle([['telescope_click', 0.12, 5], ['snow_footsteps', 0.1]], 30);
+    Audio_.play('dome_slit_open', 0.5); ['amb_dome', 0.22, 'wind', 0.16, 'air', 0.25, 'rumble', 0.3, 'drone', 0.06].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 5)); Audio_.sprinkle([['telescope_click', 0.1, 5]], 45);
   }
   async function expose(ra, dec) {
     const name = `${Astro.fieldStr(ra, dec)} · ${Astro.nearestRegion(ra, dec).name}`;

@@ -41,7 +41,7 @@ const Blink = (() => {
       const CX = 24, CY = 20, cellW = Sky.W / CX, cellH = Sky.H / CY;
       let focus = opts.focus, elapsed = 0, lastIdle = 0, running = true, dwell = 0, lastCell = '';
 
-      setTimeout(() => { pair = Sky.buildPair(opts.spec); $('#blink-mode').textContent = ''; Audio_.loop('amb_search', 0.16, 4); Audio_.loop('lamp', 0.4, 4); Audio_.loop('air', 0.2, 4); Audio_.loop('clock', 0.05, 4);
+      setTimeout(() => { pair = Sky.buildPair(opts.spec); $('#blink-mode').textContent = ''; Audio_.loop('amb_search', 0.16, 4); Audio_.loop('lamp', 0.4, 4); Audio_.loop('air', 0.2, 4); 
         // restore earlier marks of this pair; re-link to the (deterministic) movers by position
         (opts.restore || []).forEach(r => {
           let best = null, bd = 4;
