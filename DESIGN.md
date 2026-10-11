@@ -150,3 +150,18 @@ Observed box-shadow styles: rgba(0, 0, 0, 0.2) 6px 6px 9px 0px; rgba(0, 0, 0, 0.
 Observed rounded-corner tokens: sm 2px, md 3px, lg 4px, xl 20px.
 
 <!-- dembrandt v0.37.0 -->
+
+## Components
+
+One button family, five looks. Everything clickable is a `<button>`; the look comes from where it sits, not from ad hoc padding.
+
+| Look | Where | Size | Rest | On / hover |
+|---|---|---|---|---|
+| default | room menus, settings | 12 × 20, 16 px | paper text, `--line-strong` border | accent border, faint accent fill |
+| primary | one per menu: the recommended action | 16 × 20, 18 px | paper fill, ink text | `--paper-bright` fill |
+| small | toolbars, page controls, side panels, notebook | 6 × 12, 16 px | as default | as default |
+| chip | toggles in the comparator (A, B, Pencil, Negative) | 4 × 10, pill | dim text, `--line` border | paper fill, ink text |
+| nav | HUD places and sub-places | 4 × 14 | dim text, no box | paper text, accent underline; accent dot = recommended place |
+
+On a paper surface (notebook) the pair inverts: default = ink text on paper, primary = ink fill with paper text.
+Every control: press moves 1 px down, keyboard focus gets a 2 px accent outline, disabled is 50 % opacity.

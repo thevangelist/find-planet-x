@@ -3,7 +3,7 @@
 // in the middle of the view. Drag to turn, wheel to zoom, click "Expose here" or press Enter.
 const Dome3D = (() => {
   const R = Math.PI / 180, LAT = 35.2 * R, SKY = 900;
-  let renderer, scene, camera, raf, frame, state, overlay, onKey, onKeyUp, dome, domeYaw, rumbling = false, lastT = 0;
+  let webgl = null, renderer, scene, camera, raf, frame, state, overlay, onKey, onKeyUp, dome, domeYaw, rumbling = false, lastT = 0;
   const dir = (alt, az) => new THREE.Vector3(Math.cos(alt) * Math.sin(az), Math.sin(alt), -Math.cos(alt) * Math.cos(az));
   function altAz(raH, decDeg, lst) { const H = (lst - raH) * 15 * R, d = decDeg * R;
     const alt = Math.asin(Math.sin(LAT) * Math.sin(d) + Math.cos(LAT) * Math.cos(d) * Math.cos(H));
@@ -122,10 +122,12 @@ const Dome3D = (() => {
     [128, 256, 384].forEach(y => { g.fillStyle = 'rgba(15,13,10,.6)'; g.fillRect(0, y, 1024, 2); g.fillStyle = 'rgba(150,140,120,.25)'; g.fillRect(0, y + 2, 1024, 1); });
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 2); return t;
   }
-  function pineTexture() { const c = document.createElement('canvas'); c.width = 2048; c.height = 256; const g = c.getContext('2d'); const r = rng(7);
-    g.fillStyle = '#020306'; let x = 0; while (x < 2048) { const w = 18 + r() * 40, h = 90 + r() * 150; g.beginPath(); g.moveTo(x, 256); g.lineTo(x + w / 2, 256 - h); g.lineTo(x + w, 256); g.fill();
-      for (let k = 1; k < 4; k++) { const y = 256 - h * k / 4; g.beginPath(); g.moveTo(x - w * 0.15 * k / 3, y); g.lineTo(x + w / 2, y - h * 0.25); g.lineTo(x + w + w * 0.15 * k / 3, y); g.fill(); } x += w * 0.7; }
-    const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(3, 1); return t; }
+  // a far ridge of pines: a low jagged silhouette with a little haze over it, nothing closer than the horizon
+  function pineTexture() { const c = document.createElement('canvas'); c.width = 2048; c.height = 128; const g = c.getContext('2d'); const r = rng(7);
+    const haze = g.createLinearGradient(0, 40, 0, 128); haze.addColorStop(0, 'rgba(40,44,58,0)'); haze.addColorStop(1, 'rgba(40,44,58,.35)'); g.fillStyle = haze; g.fillRect(0, 0, 2048, 128);
+    g.fillStyle = '#05070c'; let x = 0, base = 70; while (x < 2048) { base += (r() - 0.5) * 6; base = Math.min(96, Math.max(50, base)); const w = 4 + r() * 6, h = 10 + r() * 22;
+      g.beginPath(); g.moveTo(x, 128); g.lineTo(x, base); g.lineTo(x + w / 2, base - h); g.lineTo(x + w, base); g.lineTo(x + w, 128); g.fill(); x += w * 0.8; }
+    const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(6, 1); return t; }
 
   function build(container, opts) {
     state = { yaw: 180 * R, pitch: 40 * R, fov: 60, lst: Astro.lst(opts.t, opts.hour + (opts.hour < 12 ? 24 : 0)), opts };
@@ -157,11 +159,14 @@ const Dome3D = (() => {
     Astro.planets(opts.t).forEach(p => { const a = altAz(p.ra, p.dec, lst); if (a.alt < -0.05) return; const pos = dir(a.alt, a.az).multiplyScalar(SKY - 20);
       const bright = clamp((6 - PMAG[p.name]) / 10, 0.12, 1); const halo = glowSprite(6 + bright * 26, 6 + bright * 26, PCOL[p.name], 0.9, 0.18); halo.position.copy(pos); scene.add(halo);
       const s = labelSprite(p.name, '#f0d9a0', false); s.position.copy(pos.clone().multiplyScalar(0.99)); s.position.y += 10; scene.add(s); });
+    if (DEBUG_PLUTO) { const a = altAz(Sky.PLUTO.ra / 15, Sky.PLUTO.dec, lst); if (a.alt > -0.05) { const pos = dir(a.alt, a.az).multiplyScalar(SKY - 20);
+      const halo = glowSprite(40, 40, '230,40,30', 1, 0.5); halo.position.copy(pos); scene.add(halo); const s = labelSprite('PLUTO', '#e03020', false); s.position.copy(pos.clone().multiplyScalar(0.99)); s.position.y += 14; scene.add(s); } }
     const ill = Astro.moonIllum(opts.t); if (ill > 0.03) { const NEW_MOON = Date.UTC(1930, 0, 29, 19, 7), SYN = 29.530589 * Astro.DAY, ph = ((((opts.t - NEW_MOON) % SYN) + SYN) % SYN) / SYN;
       const x = new Date(opts.t), doy = (opts.t - Date.UTC(x.getUTCFullYear(), 0, 1)) / Astro.DAY, sl = ((doy - 79.5) / 365.25) * 360, mp = eclRaDec(sl + ph * 360), a = altAz(mp.ra, mp.dec, lst);
       if (a.alt > -0.05) { const pos = dir(a.alt, a.az).multiplyScalar(SKY - 20), waxing = ph < 0.5; const m = moonSprite(ill, waxing, 16); m.position.copy(pos); scene.add(m);
         const hazy = opts.hazy ? 2.2 : 1; const gl = glowSprite(60 + ill * 160 * hazy, 60 + ill * 160 * hazy, '200,205,225', 0.18 + ill * 0.35, 0.05); gl.position.copy(pos.clone().multiplyScalar(0.98)); scene.add(gl);
         const s = labelSprite(`Moon ${Math.round(ill * 100)}%`, '#e6e2d6', false); s.position.copy(pos.clone().multiplyScalar(0.97)); s.position.y -= 14; scene.add(s); } }
+    [[0, 'N'], [90, 'E'], [180, 'S'], [270, 'W']].forEach(([az, n]) => { const s = labelSprite(n, '#d6685c', false); s.position.copy(dir(1.5 * R, az * R).multiplyScalar(SKY - 20)); s.scale.set(120, 30, 1); s.center.set(0.1, 0.5); scene.add(s); });
     [[0.712, 41.27, 'M31'], [5.588, -5.39, 'M42'], [3.79, 24.1, 'Pleiades'], [8.67, 19.98, 'M44'], [6.15, 24.33, 'M35'], [16.69, 36.46, 'M13'], [18.06, -24.38, 'M8'], [1.56, 30.66, 'M33'], [4.47, 15.87, 'Hyades']].forEach(([ra, dec, n]) => {
       const a = altAz(ra, dec, lst); if (a.alt < 0) return; const s = labelSprite(n, '#96bedc'); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 20)); scene.add(s); });
     STAR_NAMES.forEach(([ra, dec, n]) => { const m = BRIGHT_STARS.find(s => s[0] === ra && s[1] === dec); if (!m || m[2] > 1.0) return; const a = altAz(ra, dec, lst); if (a.alt < 0) return;
@@ -177,7 +182,7 @@ const Dome3D = (() => {
     (opts.pins || []).forEach(n => { const a = altAz(n.ra, n.dec, lst); if (a.alt < -0.1) return; const s = labelSprite(n.text, '#d8cdb4'); s.position.copy(dir(a.alt, a.az).multiplyScalar(SKY - 30)); s.scale.set(260, 65, 1); scene.add(s); });
     // ground, pines, buildings
     const ground = new THREE.Mesh(new THREE.CircleGeometry(1200, 48), new THREE.MeshBasicMaterial({ color: '#0c0e16' })); ground.rotation.x = -Math.PI / 2; ground.position.y = -3; scene.add(ground);
-    const pines = new THREE.Mesh(new THREE.CylinderGeometry(300, 300, 70, 96, 1, true), new THREE.MeshBasicMaterial({ map: pineTexture(), transparent: true, side: THREE.BackSide, depthWrite: false })); pines.position.y = 32; scene.add(pines);
+    const pines = new THREE.Mesh(new THREE.CylinderGeometry(860, 860, 36, 128, 1, true), new THREE.MeshBasicMaterial({ map: pineTexture(), transparent: true, side: THREE.BackSide, depthWrite: false })); pines.position.y = 14; scene.add(pines);
     const domeMat = new THREE.MeshBasicMaterial({ color: '#17140f' }), domeEdge = new THREE.MeshBasicMaterial({ color: '#2a2419', wireframe: true });
     const base = new THREE.Mesh(new THREE.CylinderGeometry(42, 42, 34, 32), domeMat); base.position.set(-150, 14, -190); scene.add(base);
     const cap = new THREE.Mesh(new THREE.SphereGeometry(42, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), domeMat); cap.position.set(-150, 31, -190); scene.add(cap);
@@ -218,6 +223,7 @@ const Dome3D = (() => {
     // plate frame fixed to the view
     const fw = 10 * Math.tan(Astro.PLATE_RA_DEG / 2 * R), fh = 10 * Math.tan(Astro.PLATE_DEC_DEG / 2 * R);
     frame = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-fw, -fh, -10), new THREE.Vector3(fw, -fh, -10), new THREE.Vector3(fw, fh, -10), new THREE.Vector3(-fw, fh, -10)]), new THREE.LineBasicMaterial({ color: '#ffffff' }));
+    frame.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, fh, 0), new THREE.Vector3(0, fh + 0.35, 0)]), new THREE.LineBasicMaterial({ color: '#d6685c' })));
     camera.add(frame);
     const cross = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.3, 0, -10), new THREE.Vector3(0.3, 0, -10), new THREE.Vector3(0, -0.3, -10), new THREE.Vector3(0, 0.3, -10)]), new THREE.LineBasicMaterial({ color: '#d6685c' })); camera.add(cross);
   }
@@ -243,8 +249,9 @@ const Dome3D = (() => {
     const cur = current(); const ok = cur.alt >= 25; frame.material.color.set(ok ? '#ffffff' : '#6e6760');
     // the plate sits in the equatorial mount: its edges run along RA and Dec, so the frame turns with the sky, not the horizon
     { const n = altAz(cur.ra, cur.dec + 0.5, state.lst), pN = dir(n.alt, n.az).multiplyScalar(SKY).project(camera); const c = dir(cur.alt * R, cur.az * R).multiplyScalar(SKY).project(camera);
-      const ang = Math.atan2((pN.y - c.y) * camera.aspect * 0 + (pN.y - c.y), (pN.x - c.x) * camera.aspect); frame.rotation.z = ang - Math.PI / 2; }
-    overlay.textContent = `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · altitude ${Math.round(cur.alt)}° · azimuth ${Math.round(cur.az)}°${ok ? '' : ' · too low'}`;
+      const ang = Math.atan2(pN.y - c.y, (pN.x - c.x) * camera.aspect); frame.rotation.z = ang - Math.PI / 2; }
+    const tilt = Math.round(((frame.rotation.z / R + 540) % 360) - 180), COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(cur.az / 45) % 8];
+    overlay.textContent = `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · ${COMPASS}, altitude ${Math.round(cur.alt)}° · plate ${Math.abs(tilt) < 3 ? 'north up' : Math.abs(tilt) > 177 ? 'north down' : `tilted ${Math.abs(tilt)}° ${tilt > 0 ? 'left' : 'right'}`}${ok ? '' : ' · too low'}`;
     if (state.opts.onPointing && (!state.lastPt || now - state.lastPt > 200)) { state.lastPt = now; state.opts.onPointing(cur, ok); }
     renderer.render(scene, camera); raf = requestAnimationFrame(render);
   }
@@ -263,7 +270,7 @@ const Dome3D = (() => {
     view.addEventListener('pointermove', e => { if (!state.drag) return; const k = (state.fov / 55) * 0.0022; state.goal = { yaw: state.drag.yaw + (e.clientX - state.drag.x) * k, pitch: clamp(state.drag.pitch - (e.clientY - state.drag.y) * k, -5 * R, 89 * R) }; });
     const stopDrag = () => { state.drag = null; }; view.addEventListener('pointerup', stopDrag); view.addEventListener('pointercancel', stopDrag);
     view.addEventListener('wheel', e => { e.preventDefault(); state.fov = clamp(state.fov + e.deltaY * 0.03, 20, 75); }, { passive: false });
-    const pick = () => { const cur = current(); if (cur.alt < 25) { toast('Too low. Below the pines.', 2000); return; } opts.onPick(cur.ra, cur.dec); };
+    const pick = () => { const cur = current(); if (cur.alt < 25) { toast('Too low. Haze and the pines.', 2000); return; } opts.onPick(cur.ra, cur.dec); };
     state.pick = pick;
     const KEYS = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd' };
     onKey = e => { if (e.key === 'Enter') pick(); const k = KEYS[e.key]; if (k) { e.preventDefault(); state.target = null; state.goal = null; if (!state.keys[k]) Audio_.play('telescope_click', 0.3, 5); state.keys[k] = true; } };
@@ -278,5 +285,5 @@ const Dome3D = (() => {
   function slewTo(ra, dec) { if (!state) return; const p = altAz(ra, dec, state.lst); state.target = { alt: p.alt, az: p.az }; }
   // test hook: sample the painted band at a sky position
   function mwSample(raH, decDeg) { if (!lastMW || !state) return null; const p = altAz(raH, decDeg, state.lst); const u = ((270 - p.az / R) / 360 % 1 + 1) % 1, v = p.alt / Math.PI + 0.5; return lastMW.getContext('2d').getImageData(Math.floor(u * 1024), Math.floor(v * 512), 1, 1).data[3]; }
-  return { mount, unmount, slewTo, mwSample, pick: () => state && state.pick && state.pick(), available: () => typeof THREE !== 'undefined' };
+  return { mount, unmount, slewTo, mwSample, pick: () => state && state.pick && state.pick(), available: () => { if (typeof THREE === 'undefined') return false; if (webgl == null) { try { const c = document.createElement('canvas'); webgl = !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { webgl = false; } } return webgl; } };
 })();

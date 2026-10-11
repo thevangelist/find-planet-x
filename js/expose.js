@@ -18,8 +18,14 @@ const Expose = (() => {
       const rr = rng(hashStr('ep' + (opts.ra || 0).toFixed(2) + (opts.dec || 0).toFixed(1)));
       const MAGP = { Mercury: 0.2, Venus: -4.0, Mars: 0.5, Jupiter: -2.3, Saturn: 0.7, Uranus: 5.7, Neptune: 7.8 };
       const pls = (opts.planets || []).map(p => { let dra = p.ra - opts.ra; if (dra > 12) dra -= 24; if (dra < -12) dra += 24; return { x: 0.5 - dra * 15 * cosd / FOV, y: 0.5 - (p.dec - opts.dec) / FOV, m: Math.min(1.6, Math.max(0.5, (7 - MAGP[p.name]) / 6)), planet: p.name }; }).filter(s => s.x > 0 && s.x < 1 && s.y > 0 && s.y < 1);
-      const stars = pls.concat(real).concat(Array.from({ length: 140 }, () => ({ x: rr(), y: rr(), m: rr() * 0.45 })));
-      Audio_.loop('amb_dome', 0.3, 3); Audio_.loop('wind', 0.35, 4);
+      // the faint stars are the plate's own, so the guide scope shows what the plate will record
+      const faint = [];
+      if (opts.field) { const st = Sky.starField(opts.field), degPerPx = Sky.ARCSEC_PER_MM / 3600 / Sky.PX_PER_MM;
+        for (let i = 0; i < st.length; i += 3) { if (st[i + 2] > 13.5) continue; const x = 0.5 + (st[i] - Sky.W / 2) * degPerPx / FOV, y = 0.5 + (st[i + 1] - Sky.H / 2) * degPerPx / FOV;
+          if (x > 0 && x < 1 && y > 0 && y < 1) faint.push({ x, y, m: clamp((13.5 - st[i + 2]) / 9, 0.04, 0.5) }); } }
+      else for (let i = 0; i < 140; i++) faint.push({ x: rr(), y: rr(), m: rr() * 0.45 });
+      const stars = pls.concat(real).concat(faint);
+      Audio_.loop('amb_dome', 0.22, 3); Audio_.loop('wind', 0.3, 4); Audio_.loop('air', 0.25, 4); Audio_.loop('rumble', 0.3, 4);
 
       function nudge(dx, dy) { vel.x += dx * 14; vel.y += dy * 14; Audio_.play('telescope_click', 0.35, 5); }
       const kd = e => { const k = e.key; if (k === 'ArrowLeft' || k === 'a') nudge(1, 0); else if (k === 'ArrowRight' || k === 'd') nudge(-1, 0); else if (k === 'ArrowUp' || k === 'w') nudge(0, 1); else if (k === 'ArrowDown' || k === 's') nudge(0, -1); else if (k === 'Escape') end(true); else return; e.preventDefault(); };

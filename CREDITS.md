@@ -15,6 +15,7 @@ All audio below is CC0 / public domain. Credit is not required but is given with
 - liquid_pour – "Water pouring into glass bowl 02" by Rudmer_Rotteveel (Freesound), CC0 – https://freesound.org/people/Rudmer_Rotteveel/sounds/700353/
 - water_slosh – "Hands through water in ceramic bowl" by Wigglesworth (Freesound), CC0 – https://freesound.org/people/Wigglesworth/sounds/842637/
 - coffee_pour – "pouringcoffee.wav" by labailey (Freesound), CC0 – https://freesound.org/people/labailey/sounds/79038/
+- pencil_draw – (wanted: a slow sketching stroke; pencil_write is used until one exists)
 - pencil_write – "Pencil Sounds" by AntumDeluge (sources: NachtmahrTV, damsur) (OpenGameArt), CC0 – https://opengameart.org/content/pencil-sounds
 - chair_creak – "Slow Creaking Stereo.wav" by harveyism (Freesound), CC0 – https://freesound.org/people/harveyism/sounds/130364/
 - breath_cold – "Frosty Exhale, Ice Cold Exhale, Icy Exhale" by LilMati (Freesound), CC0 – https://freesound.org/people/LilMati/sounds/519438/

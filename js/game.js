@@ -5,15 +5,15 @@ const Game = (() => {
   const START = Astro.d(1929, 4, 6);           // first plates of the real search programme
   const PHASE_START = { morning: 450, afternoon: 820, evening: 1155, night: 1390 };   // minutes since midnight
   const hhmm = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-  const clockSvg = m => { const a = (m / 60 % 12) / 12 * 2 * Math.PI, x = 11 + 7.5 * Math.sin(a), y = 11 - 7.5 * Math.cos(a);
-    return `<svg class="clock" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10"/><circle cx="11" cy="2.2" r="1" class="dot"/><line x1="11" y1="11" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/></svg>`; };
-  // Time passes while you stand there: about 3.6 game minutes per real second, so ten real minutes are
-  // a day and a half of the programme. Timed work (exposure, blinking, developing) counts its own minutes.
+  const clockSvg = m => { const hand = (a, len, w) => `<line x1="11" y1="11" x2="${(11 + len * Math.sin(a)).toFixed(1)}" y2="${(11 - len * Math.cos(a)).toFixed(1)}" stroke-width="${w}"/>`;
+    const h = (m / 60 % 12) / 12 * 2 * Math.PI, mi = (m % 60) / 60 * 2 * Math.PI;
+    return `<svg class="clock" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10"/><circle cx="11" cy="2.2" r="1" class="dot"/>${hand(h, 5.5, 2)}${hand(mi, 8.2, 1.2)}</svg>`; };
+  // Time passes while you stand there: one game minute per real minute. Timed work (exposure, blinking, developing) counts its own minutes.
   let live = true, liveN = 0;
   setInterval(() => { if (!S || !live || S.done || $('#hud').classList.contains('hidden')) return;
-    const wasDark = isDark(); tick(3.6); if (++liveN % 10 === 0) save();
-    if (isDark() !== wasDark && ['room', 'comparator', 'darkroom', 'status'].includes(S.loc)) goTo(S.loc); }, 1000);
-  const tick = min => { S.clock = Math.min(S.clock + Math.round(min), 1740); if (S.coffeeAt != null && S.clock - S.coffeeAt > 90) { S.coffeeAt = null; S.focus = clamp(S.focus - 0.15, 0, 1); toast('The coffee wears off.', 1800); } if (!$('#hud').classList.contains('hidden')) $('#hud-date').innerHTML = `${clockSvg(S.clock)} ${Astro.fmt(S.t)}  –  ${hhmm(S.clock)}`; };
+    const wasDark = isDark(); tick(1); if (++liveN % 5 === 0) save();
+    if (isDark() !== wasDark && ['room', 'comparator', 'darkroom', 'status'].includes(S.loc)) goTo(S.loc); }, 60000);
+  const tick = min => { S.clock = Math.min(S.clock + Math.round(min), 1740); if (S.coffeeAt != null && S.clock - S.coffeeAt > 90) { S.coffeeAt = null; S.focus = clamp(S.focus - 0.15, 0, 1); toast('The coffee wears off.', 1800); } if (!$('#hud').classList.contains('hidden')) $('#hud-date').innerHTML = `${clockSvg(S.clock)} ${Astro.fmt(S.t)}  –  <b class="time">${hhmm(S.clock)}</b>`; };
   
   let S = null;
 
@@ -29,8 +29,8 @@ const Game = (() => {
   const scene = () => $('#scene');
   function hud(place, region = '', extra = '') {
     $('#hud').classList.remove('hidden');
-    $('#hud-date').innerHTML = `${clockSvg(S.clock)} ${Astro.fmt(S.t)}  –  ${hhmm(S.clock)}`;
-    $('#hud-place').textContent = place; $('#hud-region').textContent = region; $('#hud-extra').textContent = extra;
+    $('#hud-date').innerHTML = `${clockSvg(S.clock)} ${Astro.fmt(S.t)}  –  <b class="time">${hhmm(S.clock)}</b>`;
+    $('#hud-place').textContent = ''; $('#hud-region').textContent = region; $('#hud-extra').textContent = extra;
     $('#hud-focus').textContent = `${S.energy > .66 ? 'fresh' : S.energy > .33 ? 'tired' : 'exhausted'} · concentration ${S.focus > .66 ? 'good' : S.focus > .33 ? 'fair' : 'poor'}`;
   }
   // Fatigue. A night of exposures in the cold and a few hours at the comparator was a full day for Tombaugh;
@@ -97,11 +97,12 @@ const Game = (() => {
     const has = load();
     const t = el('div', 'fade', `<div id="title"><div class="portrait"></div><div class="side">
       <h1>Planet X</h1><h2>Mars Hill · 1929 · Ad Astra per Aspera</h2>
+      ${has && has.done ? `<p class="brief done">You found Planet X on ${Astro.fmt(has.foundDate || has.t)}, after ${has.plates.length} plates and ${has.sessions} sessions at the comparator. Tombaugh needed ten months and some 90 pairs of plates. The planet got its name on 24 March 1930, from an eleven-year-old in Oxford.${(has.found_ids || []).length ? ` Along the way: ${has.found_ids.length} of Tombaugh’s other real discoveries.` : ''}</p>` : ''}
       <p class="brief">In 1929 Lowell Observatory hired Clyde Tombaugh, a Kansas farm boy, to photograph the ecliptic and compare the plates in pairs, looking for one faint point that moves.
         Expose on clear, moonless nights. Label every sleeve by hand. Develop, blink, check against a third plate. Write down what you find.
         Nothing is remembered that is not written. It took him ten months.</p>
       <div class="menu">
-        ${has && !has.done ? `<button id="b-cont" class="primary">Continue<small>${Astro.fmt(has.t)}, ${has.plates.length} plates</small></button><button id="b-new">Begin again</button>` : `<button id="b-new" class="primary">Begin<small>January 1929. The train arrives at Flagstaff.</small></button>`}
+        ${has && !has.done ? `<button id="b-cont" class="primary">Continue<small>${Astro.fmt(has.t)}, ${has.plates.length} plates</small></button><button id="b-new">Begin again</button>` : `<button id="b-new" class="primary">${has && has.done ? `Begin again<small>Planet X found on ${Astro.fmt(has.foundDate || has.t)}.</small>` : `Begin<small>January 1929. The train arrives at Flagstaff.</small>`}</button>`}
       </div>
 
       <p class="meta">${location.protocol === 'file:' ? 'Audio needs an http server: ./serve.sh' : ''}</p>
@@ -182,31 +183,44 @@ const Game = (() => {
     Object.entries(S.cal || {}).forEach(([k, v]) => { const m = v.match(re); if (m) out.push({ ra: (+m[1] + m[2] / 60) % 24, dec: parseFloat(m[3].replace('−', '-').replace(/\s/, '')), text: `${k.slice(5)}: ${v.slice(0, 36)}` }); });
     return out.filter(p => !isNaN(p.dec));
   }
+  const fieldSeed = (ra, dec) => `f${ra.toFixed(1)}|${dec.toFixed(0)}`, fieldDensity = seed => 0.75 + rng(hashStr(seed))() * 0.5;
   function specFor(pr) {
-    const a = pr.a, rr = rng(hashStr(pr.key));
+    const a = pr.a, rr = rng(hashStr(pr.key)), seed = fieldSeed(a.ra, a.dec);
     const pluto = Astro.covers(a.ra, a.dec, Sky.PLUTO.ra / 15, Sky.PLUTO.dec);
     // Pluto's apparent motion: full retrograde speed at opposition, ~zero 6h away (near the stationary points)
     const diff = Astro.raDiff(a.ra, Astro.oppositionRA(a.t)), plutoRate = Math.cos(clamp(diff / 6, 0, 1) * Math.PI / 2);
     const MAG = { Mercury: 0.2, Venus: -4.0, Mars: 0.5, Jupiter: -2.3, Saturn: 0.7, Uranus: 5.7, Neptune: 7.8 };
     const pA = Astro.planets(a.t), pB = Astro.planets(pr.b.t);
     const planets = pA.map((p, i) => ({ name: p.name, ra: p.ra, dec: p.dec, ra2: pB[i].ra, dec2: pB[i].dec, mag: MAG[p.name] })).filter(p => Astro.covers(a.ra, a.dec, p.ra, p.dec));
-    return { seed: pr.key, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, planets, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev].map((v, i) => v === 'fogged' || ((i ? pr.b : a).haze && Astro.moonIllum((i ? pr.b : a).t) > 0.2) ? 'fogged' : v),
-      asteroids: rr() < 0.3 ? 1 : rr() < 0.08 ? 2 : 0, density: 0.75 + rr() * 0.5,
+    return { seed, center: { ra: a.ra * 15, dec: a.dec }, days: pr.days, pluto, plutoRate, planets, haze: !!(a.haze || pr.b.haze || a.dev === 'thin' || pr.b.dev === 'thin'), fog: [a.dev, pr.b.dev].map((v, i) => v === 'fogged' || ((i ? pr.b : a).haze && Astro.moonIllum((i ? pr.b : a).t) > 0.2) ? 'fogged' : v),
+      asteroids: rr() < 0.3 ? 1 : rr() < 0.08 ? 2 : 0, density: fieldDensity(seed),
       finds: FINDS.onPlates(a.ra, a.dec, a.t, pr.b.t).filter(f => !S.found_ids.includes(f.id)) };
   }
 
   // ---------- day loop: free movement between the places on Mars Hill ----------
-  const LOCS = [['observatory', 'Observatory'], ['darkroom', 'Darkroom'], ['logbook', 'Notebook']];
-  const locOf = l => l === 'comparator' || l === 'dome' || l === 'status' || l === 'room' ? 'observatory' : l === 'calendar' ? 'logbook' : l;
+  // one flat row of places; the observatory's two rooms and the notebook's three views are all peers
+  const LOCS = [['room', 'Home'], ['dome', 'Dome'], ['comparator', 'Comparator'], ['darkroom', 'Darkroom'], ['logbook', 'Notebook'], ['calendar', 'Calendar'], ['plates', 'Plates']];
+  const locOf = l => l === 'status' || l === 'observatory' ? 'room' : l;
   const phaseOf = clock => clock < 720 ? 'morning' : clock < 1140 ? 'afternoon' : 'evening';
   const isDark = () => S.clock >= 1140, dawn = () => S.clock >= 1680;
   const HOUR_CLOCK = { 21: 1260, 23: 1380, 1: 1500, 3: 1620 }, hourOf = c => c < 1320 ? 21 : c < 1440 ? 23 : c < 1560 ? 1 : 3;
+  function nextLoc() { const w = Astro.weather(S.t, 23), dark = Astro.moonDark(S.t);
+    if (S.plates.some(p => !p.label && !p.ruined)) return 'logbook';
+    if (undeveloped().length) return 'darkroom';
+    if (unblinked().length && S.focus >= 0.12) return 'comparator';
+    if (isDark() && w.ok && dark) return 'dome';
+    return null; }
   function nav() {
-    const n = $('#hud-nav'); n.innerHTML = ''; n.classList.remove('hidden');
-    LOCS.forEach(([id, name]) => { const b = el('button', id === locOf(S.loc) ? 'on' : '', name); b.onclick = () => goTo(id); n.appendChild(b); });
+    const n = $('#hud-nav'); n.innerHTML = ''; n.classList.remove('hidden'); if (n.parentElement !== $('#hud')) $('#hud-focus').before(n);
+    const next = nextLoc(), tip = suggestion();
+    LOCS.forEach(([id, name]) => { const b = el('button', (id === locOf(S.loc) ? 'on' : '') + (next === id && id !== locOf(S.loc) ? ' hint' : ''), name); b.title = next === id ? tip : ''; b.onclick = () => goTo(id); n.appendChild(b); });
+    // the body readout opens the status page
+    const f = $('#hud-focus'); f.title = 'Status of the programme'; f.style.cursor = 'pointer'; f.onclick = () => goTo('status');
     // the two things he does besides the work
     const today = Astro.key(S.t);
-    const bed = el('button', '', 'Sleep'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; n.appendChild(bed);
+    let acts = $('#hud-acts'); if (!acts) { acts = el('div'); acts.id = 'hud-acts'; $('#hud-date').after(acts); } acts.innerHTML = '';
+    const bed = el('button', 'act', 'Sleep'); bed.title = 'Sleep until the afternoon. Dead nights pass to the next clear one.'; bed.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); sleep(1); }; acts.appendChild(bed);
+    const wk = el('button', 'act', 'A week'); wk.title = 'Let a week pass. Plates keep; nothing is lost. Then the next clear night.'; wk.onclick = () => { if (Blink.active) return toast('Leave the machine first.', 1800); skipDays(7); }; acts.appendChild(wk);
     // coffee sits with the condition it fixes, on the right
     const old = $('#hud-coffee'); if (old) old.remove();
     const cof = el('button', '', 'Coffee'); cof.id = 'hud-coffee'; cof.title = 'Sharp for ninety minutes, then a dip. 20 min.'; cof.onclick = () => { Audio_.play('coffee_pour', 0.5); S.focus = clamp(S.focus + 0.35, 0, 1); S.coffeeAt = S.clock; if (S.ate !== today) { S.ate = today; S.energy = clamp(S.energy + 0.12, 0, 1); } tick(20); toast('Coffee and bread at the stove. Sharp for an hour or so.', 2500); save(); hud($('#hud-place').textContent); }; $('#hud').appendChild(cof);
@@ -220,9 +234,34 @@ const Game = (() => {
     const score = clamp(1 - 0.12 * unl - 0.04 * Math.max(0, backlog - 4) - 0.06 * open - (silent > 14 ? 0.2 : 0), 0, 1);
     return { score, unl, backlog, open, silent, label: score > .7 ? 'good order' : score > .35 ? 'slipping' : 'chaos' };
   }
+  // the field the player is working on: the pair with open suspects, else the newest labelled plate's field
+  function fieldSteps() {
+    const prs = pairs(), live = S.plates.filter(p => !p.ruined && p.label);
+    const pr = prs.find(x => S.blinked[x.key] && S.suspects.some(s => s.pair === x.key && !s.verdict)) || prs.filter(x => !S.blinked[x.key]).sort((a, b) => b.b.t - a.b.t)[0];
+    const p = pr ? pr.a : live.sort((a, b) => b.t - a.t)[0];
+    if (!p) return null;
+    const name = Astro.nearestRegion(p.label.ra, p.label.dec).name, blinked = pr && S.blinked[pr.key], open = pr ? S.suspects.filter(s => s.pair === pr.key && !s.verdict).length : 0;
+    const judged = pr ? S.suspects.filter(s => s.pair === pr.key && s.verdict).length : 0;
+    const n = pr ? Math.round((S.t - pr.b.t) / Astro.DAY) : Math.round((S.t - p.t) / Astro.DAY);
+    return { name, steps: [
+      ['1st plate', `No. ${p.id}`, true],
+      ['2nd plate', pr ? `No. ${pr.b.id}, ${pr.days} nights later` : n < 1 ? 'another night' : n > 14 ? 'too late, start over' : 'same field, tonight', !!pr],
+      ['Blink', blinked ? `${judged + open} marked` : pr ? 'at the comparator' : '', !!blinked],
+      ['3rd plate', pr && pr.third ? 'ready' : blinked ? (open ? 'expose it' : '') : '', !!(pr && pr.third)],
+      ['Check', blinked ? (open ? `${open} open` : judged ? 'settled' : 'nothing marked') : '', !!(blinked && !open && judged)],
+    ] };
+  }
   function flow() {
     const f = $('#flow'); f.innerHTML = ''; f.classList.remove('hidden');
-    const o = order(), und = undeveloped().length, analysed = new Set(Object.keys(S.blinked).flatMap(k => k.split('-'))).size, shot = S.plates.filter(p => !p.ruined).length;
+    const o = order(), und = undeveloped().length;
+    const fs = fieldSteps();
+    if (fs) { f.appendChild(el('span', 'step', `<b>${fs.name}</b>`));
+      const cur = fs.steps.findIndex(s => !s[2]);
+      fs.steps.forEach(([name, sub, done], i) => { f.appendChild(el('span', 'arrow', done ? '✓' : '·')); f.appendChild(el('span', 'step' + (i === cur ? ' now' : done ? ' done' : ''), `<b>${name}</b> ${sub}`)); });
+      const warn = [o.unl ? `${o.unl} unlabelled` : '', und > 5 ? `${und} in the rack` : '', o.backlog > 4 ? `${o.backlog} pairs waiting` : '', o.score < .35 ? o.label : ''].filter(Boolean);
+      if (warn.length) { f.appendChild(el('span', 'arrow', '·')); f.appendChild(el('span', 'step warn', warn.join(', '))); }
+      return; }
+    const analysed = new Set(Object.keys(S.blinked).flatMap(k => k.split('-'))).size, shot = S.plates.filter(p => !p.ruined).length;
     const steps = [
       ['Exposed', `${shot} plate${shot === 1 ? '' : 's'}`, S.loc === 'dome', false],
       ['Label', o.unl ? `${o.unl} unlabelled` : 'all labelled', false, o.unl > 0],
@@ -233,7 +272,7 @@ const Game = (() => {
     ];
     steps.forEach(([name, sub, now, warn], i) => { if (i) f.appendChild(el('span', 'arrow', '·')); f.appendChild(el('span', 'step' + (now ? ' now' : '') + (warn ? ' warn' : ''), `<b>${name}</b> ${sub}`)); });
   }
-  function goTo(loc) { if (Blink.active) { Blink.abort(); return setTimeout(() => goTo(loc), 60); } Dome3D.unmount(); S.loc = loc; S.phase = phaseOf(S.clock); save(); ({ room: observatory, darkroom, comparator, dome, logbook, status: observatory, observatory, calendar })[loc](); }
+  function goTo(loc) { if (Blink.active) { Blink.abort(); return setTimeout(() => goTo(loc), 60); } Dome3D.unmount(); Audio_.stopAllExcept(['amb_dome'], 2); S.loc = loc; S.phase = phaseOf(S.clock); save(); ({ room: roomScene, darkroom, comparator, dome, logbook, status: observatory, observatory, calendar, plates: gallery })[loc](); }
   // the observatory is the comparator by day and the dome by night
   function observatory() { const w = Astro.weather(S.t, hourOf(Math.max(S.clock, 1260))); if (isDark() && w.ok && Astro.moonDark(S.t) && !(unblinked().length && S.focus >= 0.3 && S.clock < 1260)) return goTo('dome'); goTo('comparator'); }
   // the observatory: whatever is next in the pipeline
@@ -256,7 +295,8 @@ const Game = (() => {
     panel.innerHTML = `<h3>${place}</h3>` + (task ? `<h2 class="task">${task}</h2>` : '') + textLines.map(t => `<p>${t}</p>`).join('');
     const menu = el('div', 'menu'); panel.appendChild(menu);
     const list = actions.filter(a => a.primary).slice(0, 1).concat(actions.filter(a => !a.primary)).slice(0, 3);
-    list.forEach(a => { const b = el('button', a.primary ? 'primary' : '', a.label + (a.sub ? `<small>${a.sub}</small>` : '')); b.disabled = !!a.disabled; b.onclick = a.fn; menu.appendChild(b); });
+    if (!list.some(a => !a.disabled)) list.push({ label: 'Sleep', sub: 'Nothing can be done here now.', fn: () => sleep(1) });
+    list.forEach(a => { const b = el('button', a.primary ? 'primary' : 'secondary', a.label + (a.sub ? `<small>${a.sub}</small>` : '')); b.disabled = !!a.disabled; b.onclick = a.fn; menu.appendChild(b); });
     return panel;
   }
   const undeveloped = () => S.plates.filter(p => !p.developed && !p.ruined);
@@ -271,6 +311,7 @@ const Game = (() => {
     if (o.unl) return `${o.unl} plate${o.unl > 1 ? 's' : ''} without a label. Write them in the logbook before they are forgotten.`;
     if (und) return `${und} plate${und > 1 ? 's' : ''} to develop in the darkroom.`;
     if (ub && S.focus >= 0.12) return `${ub} pair${ub > 1 ? 's' : ''} waiting at the comparator.`;
+    const nt = pairs().find(pr => S.blinked[pr.key] && !pr.third && S.suspects.some(s => s.pair === pr.key && !s.verdict)); if (nt) return `A third plate of ${pairName(nt)} would settle the suspects.`;
     if (isDark() && w.ok && dark) return 'Clear and dark. The dome.';
     if (!isDark()) return w.ok && dark ? 'Tonight looks clear. Wait for dark.' : 'Daylight. Nothing waits.';
     return w.ok ? 'Moonlight. No plates tonight.' : 'No exposures tonight.';
@@ -292,6 +333,7 @@ const Game = (() => {
       acts.push({ label: `Sketch ${planet ? planet.name : 'a planet'} at the 24-inch`, sub: 'Moonlight ruins plates. A pencil does not mind.', fn: () => { tick(90); S.focus = clamp(S.focus + 0.15, 0, 1); if (spend(0.06, 'room')) return; chronicle(planet ? TEXT.sketch[planet.name] : TEXT.sketch.none); Audio_.play('pencil_write', 0.5); toast('A page of the sketchbook filled.', 2200); save(); roomScene(); } }); }
     if (!isDark()) acts.push({ label: 'Wait for dark', sub: w.ok && dark ? 'Clear tonight.' : 'No plates tonight.', primary: !workNow, fn: () => { S.clock = Math.max(S.clock, 1155); tick(0); goTo(w.ok && dark ? 'dome' : 'room'); } });
     else acts.push({ label: 'Turn in', sub: nothingToDo ? 'Sleep through the dead days to the next clear night.' : 'Sleep until the afternoon.', primary: !workNow, fn: () => { if (!(w.ok && dark)) chronicle(w.ok ? TEXT.logAuto.moon : TEXT.logAuto.cloudy); sleep(1); } });
+    ['clock', 0.1, 'stove', 0.5, 'air', 0.3, 'drone', 0.08, 'wind', 0.06].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 3)); Audio_.sprinkle([['wood_floor_creak', 0.2, 3], ['chair_creak', 0.15], ['page_turn', 0.12, 3]], 24);
     panelScene(ph === 'afternoon' ? 'coffee.jpg' : 'desk.jpg', 'Home', lines, acts, { task: workNow ? 'Work is waiting.' : isDark() ? 'Nothing to do tonight.' : 'Nothing to do until dark.' });
   }
   function status() {
@@ -317,7 +359,7 @@ const Game = (() => {
   async function develop() {
     const und = undeveloped();
     hud('Darkroom'); $('#hud-nav').classList.add('hidden'); $('#flow').classList.add('hidden'); live = false;
-    Audio_.loop('safelight', 0.2, 1);
+    ['safelight', 0.15, 'drip', 0.6, 'water', 0.25, 'air', 0.2, 'rumble', 0.15].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 2)); Audio_.sprinkle([['water_slosh', 0.15], ['liquid_pour', 0.1]], 18);
     for (let i = 0; i < und.length; i++) {
       const p = und[i]; const result = await developOne(p, i + 1, und.length);
       p.developed = true; p.dev = result; p.devT = S.t; tick(20); S.energy = clamp(S.energy - 0.02, 0, 1);
@@ -373,11 +415,14 @@ const Game = (() => {
     const w = Astro.weather(S.t, 23), can = w.ok && Astro.moonDark(S.t);
     // no pair yet: the obvious next step is the second plate of the newest lone field
     const lone = !ub.length ? S.plates.filter(p => p.label && !p.ruined && p.developed && !pairs().some(x => x.a === p || x.b === p) && Astro.key(p.t) !== Astro.key(S.t)).sort((a, b) => b.t - a.t)[0] : null;
+    const needThird = !ub.length ? open.find(pr => !pr.third) : null;
+    if (needThird && (can || isDark() && w.ok)) acts.push({ label: `Third plate of ${pairName(needThird)}`, primary: true, sub: `${S.suspects.filter(s => s.pair === needThird.key && !s.verdict).length} suspect${S.suspects.filter(s => s.pair === needThird.key && !s.verdict).length > 1 ? 's' : ''} wait for it. ${isDark() ? 'The telescope turns there.' : 'At dusk the telescope turns there.'}`, fn: () => { S.slewTo = { ra: needThird.a.label.ra, dec: needThird.a.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); } });
     if (lone && (can || isDark() && w.ok)) acts.push({ label: `Expose No. ${lone.id} again`, primary: true, sub: `${Astro.fieldStr(lone.label.ra, lone.label.dec)} · ${Astro.nearestRegion(lone.label.ra, lone.label.dec).name}. ${isDark() ? 'The telescope turns there.' : 'At dusk the telescope turns there.'}`, fn: () => { S.slewTo = { ra: lone.label.ra, dec: lone.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); } });
     acts.push({ label: isDark() ? 'Expose' : 'Expose at dusk', sub: isDark() ? 'Up in the dome.' : can ? 'Clear tonight.' : 'No plates tonight.', primary: !acts.some(a => a.primary) && (isDark() || can), fn: () => { if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo(can || isDark() ? 'dome' : 'comparator'); } });
     if (!ub.length && !can) acts.push({ label: 'Sleep', sub: 'Nothing waits. To the next clear night.', primary: !acts.some(a => a.primary), fn: () => sleep(1) });
-    if (!ub.length && !undeveloped().length) acts.push({ label: 'Let a month pass', sub: 'Routine plates, nothing found. The sky turns.', fn: () => { S.t += Astro.DAY * 30; S.clock = 1739; S.energy = 1; S.focus = 1; waitForNight(); } });
+    if (!ub.length && !undeveloped().length) acts.push({ label: 'Let a month pass', sub: 'Routine plates, nothing found. The sky turns.', fn: () => skipDays(30) });
     if (!isDark() && !ub.length && can) lines.push(`Tonight: ${wxLine(S.t, 23)} Moon ${Math.round(Astro.moonIllum(S.t) * 100)} %.`);
+    ['clock', 0.08, 'air', 0.3, 'lamp', 0.5, 'drone', 0.07, 'wind', 0.05].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 3)); Audio_.sprinkle([['chair_creak', 0.2], ['wood_floor_creak', 0.15, 3], ['glass_plate_set', 0.12]], 20);
     panelScene('comparator.jpg', 'Comparator room', lines, acts, { task: ub.length ? `Blink ${ub.length} pair${ub.length > 1 ? 's' : ''}.` : S.focus < 0.12 ? 'Eyes done. Rest.' : 'No pairs to blink.' });
   }
   async function blink(pr) {
@@ -407,6 +452,7 @@ const Game = (() => {
     if (spend(res.minutes / 50 * 0.12, 'comparator')) return;
     goTo(S.focus > 0.3 && unblinked().length ? 'comparator' : 'room');
   }
+  function skipDays(n) { S.t += Astro.DAY * n; S.clock = 1739; S.lastNote = Math.max(S.lastNote ?? 0, S.t - Astro.DAY * 3); chronicle(n >= 28 ? 'A month of routine plates. Nothing moved that should not.' : 'A week. Snow, bread, the stove. The rack waits.'); save(); waitForNight(); }
   function sleep(days) { const short = S.clock >= 1620;
     const idle = !undeveloped().length && !unblinked().length;
     const nextT = S.t + Astro.DAY * days;
@@ -454,7 +500,7 @@ const Game = (() => {
         g.strokeStyle = 'rgba(80,72,60,.35)'; g.lineWidth = 0.7; g.stroke(); }); };
     let st = null, counted = false;
     const pt = e => { const r = cv.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width, 0, 1), clamp((e.clientY - r.top) / r.height, 0, 1)]; };
-    cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); st = [pt(e)]; entry.sketch.push(st); if (!counted) { counted = true; tick(10); Audio_.play('pencil_write', 0.35); } });
+    cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); st = [pt(e)]; entry.sketch.push(st); if (!counted) { counted = true; tick(10); Audio_.play('pencil_draw', 0.35); } });
     cv.addEventListener('pointermove', e => { if (!st) return; const q = pt(e), l = st[st.length - 1]; if (Math.hypot((q[0] - l[0]) * W, (q[1] - l[1]) * H) > 1.5) { st.push(q); draw(); } });
     const up = () => { if (st) { st = null; save(); } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
     draw();
@@ -470,8 +516,7 @@ const Game = (() => {
       pg.querySelectorAll('canvas.sk').forEach(cv => sketchPad(cv, S.log[+cv.dataset.i]));
       return pg; };
     const book = el('div', 'notebook fade'); book.appendChild(page(left, 'left')); book.appendChild(page(left + 1, 'right')); root.appendChild(book);
-    const ctl = el('div', 'book-ctl', `<button id="pg-prev" ${left === 0 ? 'disabled' : ''}>Earlier pages</button><span>pages ${left + 1} and ${left + 2} of ${last + 1}</span><button id="pg-next" ${left + 2 > last ? 'disabled' : ''}>Later pages</button><button id="pg-cal">Calendar</button>`); root.appendChild(ctl);
-    $('#pg-cal').onclick = () => goTo('calendar');
+    const ctl = el('div', 'book-ctl', `<button id="pg-prev" ${left === 0 ? 'disabled' : ''}>Earlier pages</button><span>pages ${left + 1} and ${left + 2} of ${last + 1}</span><button id="pg-next" ${left + 2 > last ? 'disabled' : ''}>Later pages</button>`); root.appendChild(ctl);
     const flip = i => { Audio_.play('page_turn', 0.4, 3); logbook(i); };
     $('#pg-prev').onclick = () => flip(left - 2); $('#pg-next').onclick = () => flip(left + 2);
     const o = order();
@@ -489,6 +534,51 @@ const Game = (() => {
     if (pageIdx == null) Audio_.play('page_turn', 0.4, 3);
   }
 
+  // ---------- plate gallery: every plate as a contact print, one plate large on click ----------
+  function plateSpec(p) {
+    const pr = pairs().find(x => x.a === p || x.b === p), seed = fieldSeed(pr ? pr.a.ra : p.ra, pr ? pr.a.dec : p.dec);
+    return { seed, center: { ra: p.ra * 15, dec: p.dec }, days: 0, pluto: false, planets: [], finds: [], asteroids: 0, haze: !!(p.haze || p.dev === 'thin'), fog: [p.dev === 'fogged' ? 'fogged' : p.dev, 'good'], density: fieldDensity(seed) };
+  }
+  function plateCaption(p) {
+    const pr = pairs().find(x => x.a === p || x.b === p), other = pr ? (pr.a === p ? pr.b : pr.a) : null;
+    return [`<b>No. ${p.id}</b> · ${Astro.fmtShort(p.t)}`, p.ruined ? 'ruined' : p.label ? `${Astro.fieldStr(p.label.ra, p.label.dec)} · ${Astro.nearestRegion(p.label.ra, p.label.dec).name}` : 'no label',
+      p.ruined ? '' : !p.developed ? 'in the rack, undeveloped' : `developed ${p.dev || 'good'}${pr ? ` · pair with No. ${other.id}${S.blinked[pr.key] ? ', blinked' : ''}` : ''}`].filter(Boolean).join('<br>');
+  }
+  function plateNeed(p) {
+    if (p.ruined || !p.label) return null;
+    const pr = pairs().find(x => x.a === p || x.b === p), n = Math.round((S.t - p.t) / Astro.DAY);
+    if (!pr) { if (!p.developed) return null; return n < 1 ? { text: 'second plate: another night' } : n > 14 ? { text: `${n} nights ago, too old for a pair. Start the field again.`, shoot: 'Expose again' } : { text: `needs a second plate (${14 - n} night${14 - n === 1 ? '' : 's'} left)`, shoot: 'Expose the second plate' }; }
+    if (!S.blinked[pr.key]) return { text: 'pair ready: blink it' };
+    const open = S.suspects.filter(s => s.pair === pr.key && !s.verdict).length;
+    if (open && !pr.third) return { text: `${open} suspect${open > 1 ? 's' : ''} open: needs a third plate`, shoot: 'Expose the third plate' };
+    return null;
+  }
+  function shootField(p) { S.slewTo = { ra: p.label.ra, dec: p.label.dec }; if (!isDark()) { S.clock = Math.max(S.clock, 1155); tick(0); } goTo('dome'); }
+  function gallery(openId) {
+    hud('Plates'); nav(); S.loc = 'plates';
+    const root = scene(); root.innerHTML = ''; const pic = el('div', 'picture dim'); pic.style.backgroundImage = 'url(assets/img/comparator.jpg)'; root.appendChild(pic);
+    const ps = S.plates.slice().sort((a, b) => b.t - a.t);
+    const grid = el('div', 'gallery fade'); root.appendChild(grid);
+    if (!ps.length) grid.appendChild(el('p', 'empty', 'No plates yet. Every exposure ends up here.'));
+    ps.forEach(p => { const card = el('div', 'plate-card' + (p.ruined ? ' ruined' : '')); const cv = p.ruined ? el('div', 'thumb ruined') : Sky.thumb(plateSpec(p), 216); cv.classList.add('thumb'); card.appendChild(cv);
+      card.appendChild(el('div', 'cap', plateCaption(p))); if (!p.ruined) card.onclick = () => gallery(p.id);
+      const need = plateNeed(p); if (need) { card.appendChild(el('div', 'need', need.text));
+        if (need.shoot) { const w = Astro.weather(S.t, 23), can = w.ok && Astro.moonDark(S.t); const b = el('button', 'secondary', need.shoot + `<small>${isDark() ? (can ? 'Tonight. The telescope turns there.' : 'Not tonight: ' + (w.ok ? 'moon' : 'weather') + '.') : (can ? 'At dusk the telescope turns there.' : 'Not tonight.')}</small>`); b.disabled = !can && !(isDark() && w.ok); b.onclick = e => { e.stopPropagation(); shootField(p); }; card.appendChild(b); } }
+      grid.appendChild(card); });
+    const p = ps.find(x => x.id === openId); if (!p) return;
+    const big = el('div', 'plate-view fade'); root.appendChild(big); Audio_.play('glass_plate_set', 0.4);
+    const live = ps.filter(q => !q.ruined), at = live.indexOf(p), go = i => { const q = live[i]; if (q) gallery(q.id); };
+    const bar = el('div', 'bar', `<b>No. ${p.id}</b> · ${Astro.fmtShort(p.t)}<span class="count">Plate ${at + 1} of ${live.length}</span>`); big.appendChild(bar);
+    const x = el('button', 'close', 'Close'); x.onclick = () => big.remove(); bar.appendChild(x);
+    const prev = el('button', 'arrow prev', '‹'); prev.title = 'Previous plate (←)'; prev.disabled = at <= 0; prev.onclick = () => go(at - 1); big.appendChild(prev);
+    const stage = el('div', 'stage'); big.appendChild(stage);
+    const pair = Sky.buildPair(plateSpec(p)), cv = pair.a; cv.className = 'full'; stage.appendChild(cv);
+    const next = el('button', 'arrow next', '›'); next.title = 'Next plate (→)'; next.disabled = at >= live.length - 1; next.onclick = () => go(at + 1); big.appendChild(next);
+    big.appendChild(el('div', 'cap', plateCaption(p) + '<br><span class="hint">Click the plate to zoom · ← → to move · Esc to close</span>'));
+    let zoom = false; cv.onclick = e => { zoom = !zoom; cv.classList.toggle('zoom', zoom); if (zoom) { const r = cv.getBoundingClientRect(); stage.scrollTo((e.clientX - r.left) / r.width * cv.scrollWidth - stage.clientWidth / 2, (e.clientY - r.top) / r.height * cv.scrollHeight - stage.clientHeight / 2); } };
+    const kd = e => { if (e.key === 'ArrowLeft') go(at - 1); else if (e.key === 'ArrowRight') go(at + 1); else if (e.key === 'Escape') big.remove(); else return; window.removeEventListener('keydown', kd); };
+    window.addEventListener('keydown', kd); const obs = new MutationObserver(() => { if (!document.contains(big)) { window.removeEventListener('keydown', kd); obs.disconnect(); } }); obs.observe(root, { childList: true });
+  }
   // ---------- calendar: moon, plates, second-plate windows, dated notes ----------
   function calendar(monthT) {
     const base = monthT ?? S.t, x = new Date(base), y = x.getUTCFullYear(), m = x.getUTCMonth();
@@ -513,11 +603,11 @@ const Game = (() => {
         ${done}${note ? `<span class="note">${note}</span>` : ''}</div>`);
     }
     const dark = (() => { let n = 0; for (let d = 1; d <= days; d++) if (Astro.moonDark(Date.UTC(y, m, d))) n++; return n; })();
-    const cal = el('div', 'calendar fade', `<div class="cal-head"><button id="cal-prev">Earlier</button><h2>${Astro.FI_MONTHS[m]} ${y}</h2><button id="cal-next">Later</button><button id="cal-book">Notebook pages</button></div>
+    const cal = el('div', 'calendar fade', `<div class="cal-head"><button id="cal-prev">Earlier</button><h2>${Astro.FI_MONTHS[m]} ${y}</h2><button id="cal-next">Later</button></div>
       <div class="cal-sub">${dark} moonless nights this month. Dark discs are dark of the moon. Each day shows what was exposed, developed and blinked. Click a day to write a plan.</div>
       <div class="grid"><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>${cells.join('')}</div>`);
     root.appendChild(cal);
-    $('#cal-prev').onclick = () => calendar(Date.UTC(y, m - 1, 1)); $('#cal-next').onclick = () => calendar(Date.UTC(y, m + 1, 1)); $('#cal-book').onclick = () => goTo('logbook');
+    $('#cal-prev').onclick = () => calendar(Date.UTC(y, m - 1, 1)); $('#cal-next').onclick = () => calendar(Date.UTC(y, m + 1, 1));
     cal.querySelectorAll('.cell[data-k]').forEach(c => c.addEventListener('click', () => {
       if (c.querySelector('input')) return; const k = c.dataset.k; const inp = el('input'); inp.value = S.cal[k] || ''; inp.placeholder = 'plan…'; inp.maxLength = 48; c.appendChild(inp); inp.focus();
       const done = () => { const v = inp.value.trim(); if (v !== (S.cal[k] || '')) { if (v) S.cal[k] = v; else delete S.cal[k]; tick(5); Audio_.play('pencil_write', 0.4); S.lastNote = S.t; } save(); calendar(Date.UTC(y, m, 1)); };
@@ -550,7 +640,7 @@ const Game = (() => {
         onPointing: (cur, ok) => { if (!sm) return; const sf = ok && sameField(cur.ra, cur.dec);
           sm.textContent = !ok ? 'Too low. Point above the pines.' : sf ? (Astro.key(sf.t) === Astro.key(S.t) ? `Field of plate No. ${sf.id}, exposed tonight. A pair needs another night.` : `Field of plate No. ${sf.id}, ${Astro.fmtShort(sf.t)}. Same label makes a pair.`) : `${Astro.fieldStr(cur.ra, cur.dec)} · ${Astro.nearestRegion(cur.ra, cur.dec).name} · new field`; btn.disabled = !ok; } }); }
     if (S.slewTo && !flatPref) { const tgt = S.slewTo; setTimeout(() => Dome3D.slewTo(tgt.ra, tgt.dec), 600); } S.slewTo = null;
-    Audio_.play('dome_slit_open', 0.5); Audio_.loop('amb_dome', 0.3, 4);
+    Audio_.play('dome_slit_open', 0.5); ['amb_dome', 0.22, 'wind', 0.16, 'air', 0.25, 'rumble', 0.3, 'drone', 0.06].forEach((v, i, a) => i % 2 || Audio_.loop(v, a[i + 1], 5)); Audio_.sprinkle([['telescope_click', 0.12, 5], ['snow_footsteps', 0.1]], 30);
   }
   async function expose(ra, dec) {
     const name = `${Astro.fieldStr(ra, dec)} · ${Astro.nearestRegion(ra, dec).name}`;
@@ -558,7 +648,8 @@ const Game = (() => {
     Audio_.play('dome_rotate', 0.4); await wait(1200); Audio_.play('glass_plate_set', 0.5);
     const w = Astro.weather(S.t, S.hour);
     live = false;
-    const res = await Expose.run({ regionName: name, ra, dec, planets: Astro.planets(S.t), minutes: 60, tempC: Astro.tempC(S.t), wind: w.wind, haze: w.state === 'haze', tired: S.energy < 0.33 });
+    const seed = fieldSeed(ra, dec);
+    const res = await Expose.run({ regionName: name, ra, dec, field: { seed, center: { ra: ra * 15, dec }, density: fieldDensity(seed), haze: w.state === 'haze' }, planets: Astro.planets(S.t), minutes: 60, tempC: Astro.tempC(S.t), wind: w.wind, haze: w.state === 'haze', tired: S.energy < 0.33 });
     const plate = { id: S.nextId++, ra, dec, label: null, t: S.t, ruined: res.ruined, developed: false, haze: w.state === 'haze', wind: w.wind };
     live = true; S.plates.push(plate);
     tick(res.minutes + 15);

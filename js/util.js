@@ -31,5 +31,7 @@ function toast(msg, ms = 3200) {
 }
 
 // small persistent preferences (sound, negative view)
+// ?pluto in the URL paints Planet X big and red on both charts, for testing the discovery
+const DEBUG_PLUTO = /[?&]pluto\b/.test(location.search);
 const Prefs = (() => { const K = 'tombaugh-prefs'; let p = {}; try { p = JSON.parse(localStorage.getItem(K)) || {}; } catch (e) {}
   return { get: k => p[k], set: (k, v) => { p[k] = v; try { localStorage.setItem(K, JSON.stringify(p)); } catch (e) {} } }; })();

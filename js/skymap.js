@@ -61,6 +61,7 @@ const SkyMap = (() => {
       g.fillStyle = 'rgba(214,104,92,.9)'; g.fillText('opposition', X(op.ra) + 12, Y(op.dec) - 8);
       const ph = ((((t - NEW_MOON) % SYN) + SYN) % SYN) / SYN, mp = eclRaDec(sl + ph * 360), ill = Astro.moonIllum(t);
       g.fillStyle = `rgba(230,228,220,${0.25 + ill * 0.7})`; g.beginPath(); g.arc(X(mp.ra), Y(mp.dec), 7, 0, 7); g.fill(); g.fillStyle = 'rgba(216,205,180,.8)'; g.fillText(`Moon ${Math.round(ill * 100)}%`, X(mp.ra) + 10, Y(mp.dec) + 18);
+      if (DEBUG_PLUTO) { const x = X(Sky.PLUTO.ra / 15), y = Y(Sky.PLUTO.dec); g.fillStyle = '#e03020'; g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill(); g.fillText('PLUTO', x + 12, y + 5); }
       // horizon mask for this hour
       g.fillStyle = 'rgba(3,3,5,.86)';
       for (let x = 0; x < W; x += 10) for (let y = 0; y < H; y += 10) { const ra = (1 - (x + 5) / W) * 24, dec = DEC_TOP - (y + 5) / H * DEC_SPAN; if (alt(ra, dec) < MIN_ALT) g.fillRect(x, y, 10, 10); }

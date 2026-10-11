@@ -109,15 +109,19 @@ const Sky = (() => {
   }
 
   // Build a plate pair: returns { a, b, movers, spec } where a,b are canvases
-  function buildPair(spec) {
-    const r = rng(hashStr(spec.seed));
+  // the field's stars in plate pixels [x, y, mag, ...]; the same seed gives the same sky in the guide scope, the print and the comparator
+  function starField(spec, r = rng(hashStr(spec.seed))) {
     const nStars = Math.round((spec.density ?? 1) * 30000 * (spec.haze ? 0.72 : 1)), hz = spec.haze ? 0.7 : 0;
     const stars = new Float32Array(nStars * 3);
     for (let i = 0; i < nStars; i++) {
       // log N(m) ~ 0.4m; shape a distribution peaking at faint mags, limit ~17
-      let mag = 17.2 - hz - Math.pow(r(), 0.42) * 9.5;
-      stars[i * 3] = r() * W; stars[i * 3 + 1] = r() * H; stars[i * 3 + 2] = mag;
+      stars[i * 3 + 2] = 17.2 - hz - Math.pow(r(), 0.42) * 9.5; stars[i * 3] = r() * W; stars[i * 3 + 1] = r() * H;
     }
+    return stars;
+  }
+  function buildPair(spec) {
+    const r = rng(hashStr(spec.seed));
+    const stars = starField(spec, r), nStars = stars.length / 3;
     const inPlate = mm => Math.abs(mm.x) < PLATE_W_MM / 2 && Math.abs(mm.y) < PLATE_H_MM / 2;
     const named = BRIGHT_STARS.map(s => ({ mm: project(spec.center, s[0] * 15, s[1]).mm, mag: s[2] })).concat(GEM_STARS.filter(s => s[2] > 5.2).map(s => ({ mm: project(spec.center, s[0], s[1]).mm, mag: s[2] })))
       .filter(s => inPlate(s.mm)).map(s => ({ ...mmToPx(s.mm), mag: s.mag }));
@@ -183,5 +187,18 @@ const Sky = (() => {
     return { a: plates[0], b: plates[1], movers, spec, W, H };
   }
 
-  return { buildPair, PLATE_W_MM, PLATE_H_MM, PX_PER_MM, W, H, mmToPx, PLUTO, DSO };
+  // a contact-print of one plate at a small size: the same star field as buildPair, stars brighter than 15.5 only, no grain
+  function thumb(spec, w) {
+    const r = rng(hashStr(spec.seed)), k = w / W, h = Math.round(H * k);
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+    g.fillStyle = spec.fog && spec.fog[0] === 'fogged' ? '#5a5955' : '#15171a'; g.fillRect(0, 0, w, h);
+    const st = starField(spec, r);
+    for (let i = 0; i < st.length; i += 3) { const mag = st[i + 2], x = st[i] * k, y = st[i + 1] * k; if (mag > 13.8) continue;
+      const a = clamp((13.8 - mag) / 5, 0.2, 1), sz = Math.max(1, (13.8 - mag) * 0.3); g.fillStyle = `rgba(232,228,220,${a})`; g.fillRect(x - sz / 2, y - sz / 2, sz, sz); }
+    BRIGHT_STARS.forEach(s => { const mm = project(spec.center, s[0] * 15, s[1]).mm; if (Math.abs(mm.x) >= PLATE_W_MM / 2 || Math.abs(mm.y) >= PLATE_H_MM / 2) return; const p = mmToPx(mm), sz = Math.max(2, (9 - s[2]) * 1.1);
+      g.fillStyle = '#eeebe4'; g.beginPath(); g.arc(p.x * k, p.y * k, sz / 2, 0, 7); g.fill(); });
+    const v = g.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, h * 0.85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = v; g.fillRect(0, 0, w, h);
+    return c;
+  }
+  return { buildPair, thumb, starField, PLATE_W_MM, ARCSEC_PER_MM, PLATE_H_MM, PX_PER_MM, W, H, mmToPx, PLUTO, DSO };
 })();

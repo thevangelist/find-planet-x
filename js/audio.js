@@ -4,7 +4,8 @@ const Audio_ = (() => {
   let ctx, master, muted = !!Prefs.get('muted'), started = false;
   const buffers = {}, missing = new Set(), loops = {}, fx = {};
   const EXT = ['ogg', 'mp3', 'wav'];
-  const SYNTH_BEDS = ['wind', 'drone', 'amb_search', 'amb_dome', 'safelight', 'clock'];
+  const SYNTH_BEDS = ['wind', 'drone', 'amb_search', 'amb_dome', 'safelight', 'clock', 'air', 'rumble', 'stove', 'drip', 'lamp', 'water'];
+  const BED_GAIN = 0.7;   // ambience sits under the one-shots
 
   async function fetchBuffer(name) {
     for (const ext of EXT) {
@@ -87,6 +88,21 @@ const Audio_ = (() => {
       const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 60;
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 200;
       const og = ctx.createGain(); og.gain.value = 0.08; o.connect(lp).connect(og).connect(g); o.start(); nodes.push(o);
+    } else if (name === 'air' || name === 'rumble' || name === 'water') {
+      // room tone, the ground under the dome, water in the tray: shaped noise with a slow wobble
+      const s = ctx.createBufferSource(); s.buffer = noiseB; s.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = name === 'air' ? 'bandpass' : 'lowpass'; f.frequency.value = name === 'air' ? 1800 : name === 'rumble' ? 55 : 700; f.Q.value = name === 'air' ? 0.5 : 1;
+      const ag = ctx.createGain(); ag.gain.value = name === 'air' ? 0.25 : name === 'rumble' ? 1.2 : 0.5;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = name === 'water' ? 0.21 : 0.045; const lg = ctx.createGain(); lg.gain.value = ag.gain.value * 0.4; lfo.connect(lg).connect(ag.gain); lfo.start();
+      s.connect(f).connect(ag).connect(g); s.start(); nodes.push(s, lfo);
+    } else if (name === 'lamp') {
+      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 100;
+      const og = ctx.createGain(); og.gain.value = 0.05; o.connect(og).connect(g); o.start(); nodes.push(o);
+    } else if (name === 'stove' || name === 'drip') {
+      // irregular ticks: iron cooling, or a drop into the sink
+      let tm; const fire = () => { if (g.gain.value > 0.005) click(name === 'stove' ? 0.08 : 0.12, name === 'stove' ? 1800 + Math.random() * 2500 : 2800 + Math.random() * 800, name === 'stove' ? 0.015 : 0.05);
+        tm = setTimeout(fire, (name === 'stove' ? 0.4 + Math.random() * 3 : 2 + Math.random() * 6) * 1000); }; fire();
+      nodes.push({ stop: () => clearTimeout(tm) });
     } else if (name === 'clock') {
       const iv = setInterval(() => { if (g.gain.value > 0.01) tick(); }, 1000);
       nodes.push({ stop: () => clearInterval(iv) });
@@ -118,6 +134,7 @@ const Audio_ = (() => {
   function setMusic(on) { music = on; if (!on) Object.keys(loops).filter(isMusic).forEach(n => stop(n, 1)); }
   async function loop(name, vol = 0.3, fade = 3) {
     if (!started || (!music && isMusic(name))) return;
+    vol *= BED_GAIN;
     const target = vol * (buffers[name] || !SYNTH_BEDS.includes(name) ? 1 : 0.5);
     if (loops[name]) { loops[name].gain.gain.cancelScheduledValues(ctx.currentTime); loops[name].gain.gain.setTargetAtTime(target, ctx.currentTime, fade / 3); return; }
     const token = Symbol(); pending[name] = token;
@@ -137,7 +154,14 @@ const Audio_ = (() => {
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + fade);
     setTimeout(() => L.nodes.forEach(n => { try { n.stop && n.stop(); n.disconnect && n.disconnect(); } catch (e) {} }), fade * 1000 + 300);
   }
-  function stopAll(fade = 2.5) { Object.keys(loops).forEach(n => stop(n, fade)); }
+  // random one-shots for a place: [[name, vol, variants], ...], one every `every` seconds give or take
+  let sprinkleTimer = null;
+  function sprinkle(list, every = 18) {
+    clearTimeout(sprinkleTimer);
+    const next = () => { sprinkleTimer = setTimeout(() => { const [n, v, k] = list[Math.floor(Math.random() * list.length)]; play(n, v, k || 1); next(); }, (every * (0.5 + Math.random())) * 1000); };
+    if (list.length) next();
+  }
+  function stopAll(fade = 2.5) { clearTimeout(sprinkleTimer); Object.keys(loops).forEach(n => stop(n, fade)); }
   function stopAllExcept(keep, fade = 2.5) { Object.keys(loops).forEach(n => { if (!keep.includes(n)) stop(n, fade); }); }
 
   // one-shot effect; variants as name_1 name_2 ... are tried first
@@ -146,16 +170,33 @@ const Audio_ = (() => {
     let buf = null;
     if (variants > 1) buf = await load(`${name}_${1 + Math.floor(Math.random() * variants)}`);
     if (!buf) buf = await load(name);
+    if (!buf && name === 'pencil_draw') buf = await load('pencil_write');
     if (!buf) { fallbackFx(name, vol); return; }
+    if (name === 'pencil_write' || name === 'pencil_draw') { scribble(buf, vol, name === 'pencil_draw'); return; }
+    // long recordings (a chair, footsteps, a pour) give a random slice of a few seconds, not the whole take
+    const len = Math.min(buf.duration, 3.5), off = Math.random() * (buf.duration - len), fade = len < buf.duration ? 0.4 : 0.05;
     const s = ctx.createBufferSource(); s.buffer = buf; const g = ctx.createGain(), t = ctx.currentTime;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.02);
-    g.gain.setValueAtTime(vol, t + buf.duration - 0.05); g.gain.linearRampToValueAtTime(0, t + buf.duration);
-    s.connect(g).connect(master); s.start(t);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + Math.min(0.02 + fade, len / 3));
+    g.gain.setValueAtTime(vol, t + len - fade); g.gain.linearRampToValueAtTime(0, t + len);
+    s.connect(g).connect(master); s.start(t, off, len);
+  }
+  // a short random slice of the pencil sample, a little slower or faster each time, never twice within 0.7 s.
+  // Writing is quick and bright; a sketch stroke is slower, longer and duller.
+  let lastScribble = 0;
+  function scribble(buf, vol, draw) {
+    const t = ctx.currentTime; if (t - lastScribble < 0.7) return; lastScribble = t;
+    const len = (draw ? 0.6 : 0.35) + Math.random() * 0.4, off = Math.random() * Math.max(0, buf.duration - len);
+    const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = (draw ? 0.6 : 0.85) + Math.random() * 0.3;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = (draw ? 1200 : 2500) + Math.random() * 2000;
+    const g = ctx.createGain(), v = vol * (0.3 + Math.random() * 0.15);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.05);
+    g.gain.setValueAtTime(v, t + len - 0.12); g.gain.linearRampToValueAtTime(0, t + len);
+    s.connect(f).connect(g).connect(master); s.start(t, off, len);
   }
   function fallbackFx(name, vol) {
     if (name === 'telescope_click' || name === 'comparator_click') click(vol * 0.4, 1400, 0.04);
     else if (name === 'glass_plate_set') { click(vol * 0.5, 3200, 0.08); setTimeout(() => click(vol * 0.3, 900, 0.12), 90); }
-    else if (name === 'pencil_write') { let i = 0; const iv = setInterval(() => { click(0.04, 4000 + Math.random() * 2000, 0.02); if (++i > 18) clearInterval(iv); }, 90); }
+    else if (name === 'pencil_write' || name === 'pencil_draw') { let i = 0; const iv = setInterval(() => { click(0.04, 4000 + Math.random() * 2000, 0.02); if (++i > 18) clearInterval(iv); }, 90); }
     else if (name === 'chair_creak' || name === 'wood_floor_creak' || name === 'door_creak') click(vol * 0.3, 300 + Math.random() * 200, 0.25);
     else if (name === 'page_turn') click(vol * 0.3, 2200, 0.12);
     // everything else stays silent until the file arrives
@@ -176,5 +217,5 @@ const Audio_ = (() => {
 
   function preload(names) { if (started) names.forEach(load); }
   document.addEventListener('keydown', e => { if ((e.key === 'm' || e.key === 'M') && !/INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName)) toggleMute(); });
-  return { init, play, loop, stop, stopAll, stopAllExcept, click, tick, swell, preload, toggleMute, setMusic, get started() { return started; } };
+  return { init, play, loop, sprinkle, stop, stopAll, stopAllExcept, click, tick, swell, preload, toggleMute, setMusic, get started() { return started; } };
 })();

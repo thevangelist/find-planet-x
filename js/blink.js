@@ -17,7 +17,7 @@ const Blink = (() => {
             <h3>Plate pair</h3>
             <div id="pair-info"></div>
             <canvas id="plate-map" width="270" height="200"></canvas>
-            <div class="tools"><button id="btn-side" class="chip">Side by side</button><button id="btn-pencil" class="chip on">Pencil</button><button id="btn-neg" class="chip">Negative</button></div>
+            <div class="tools"><button id="btn-a" class="chip on">A</button><button id="btn-b" class="chip">B</button><button id="btn-side" class="chip">Side by side</button><button id="btn-pencil" class="chip on">Pencil</button><button id="btn-neg" class="chip">Negative</button></div>
             <div class="legend">Left and right arrows switch plate A and B. Space flips. Draw a pencil ring around anything that jumps, then say what you think it is.</div>
             <h3>Suspects</h3>
             <div id="suspects"><span style="opacity:.5">No marks.</span></div>
@@ -41,7 +41,7 @@ const Blink = (() => {
       const CX = 24, CY = 20, cellW = Sky.W / CX, cellH = Sky.H / CY;
       let focus = opts.focus, elapsed = 0, lastIdle = 0, running = true, dwell = 0, lastCell = '';
 
-      setTimeout(() => { pair = Sky.buildPair(opts.spec); $('#blink-mode').textContent = ''; Audio_.loop('amb_search', 0.22, 4);
+      setTimeout(() => { pair = Sky.buildPair(opts.spec); $('#blink-mode').textContent = ''; Audio_.loop('amb_search', 0.16, 4); Audio_.loop('lamp', 0.4, 4); Audio_.loop('air', 0.2, 4); Audio_.loop('clock', 0.05, 4);
         // restore earlier marks of this pair; re-link to the (deterministic) movers by position
         (opts.restore || []).forEach(r => {
           let best = null, bd = 4;
@@ -104,10 +104,13 @@ const Blink = (() => {
         const p = Sky.mmToPx(s.m); vx = p.x - size / 2; vy = p.y - size / 2;
         for (let i = 0; i < 6; i++) { plateIdx = i % 2; draw(); Audio_.click(0.14, 1500, 0.03); await wait(900); }
         plateIdx = 0; draw();
-        const ov = el('div', 'overlay-text', '<p></p>'); scene.appendChild(ov);
-        await wait(3500);
+        const ov = el('div', 'overlay-text', '<div class="col"><p class="hint"></p><p></p></div>'); scene.appendChild(ov);
+        await wait(2500);
+        const [hint, big] = ov.querySelectorAll('p');
+        hint.textContent = `Shift ${s.shift.toFixed(1)} mm in ${opts.spec.days} nights · third plate agrees`; hint.classList.add('on');
+        await wait(2500);
         Audio_.swell(70);
-        ov.querySelector('p').textContent = TEXT.discovery.quote; ov.querySelector('p').classList.add('on');
+        big.textContent = TEXT.discovery.quote; big.classList.add('on');
         await wait(5000);
         finish({ found: true, suspects, minutes: Math.round(elapsed / 60 * 50), note: $('#pair-note').value.trim() });
       }
@@ -182,7 +185,8 @@ const Blink = (() => {
       requestAnimationFrame(frame);
 
       // ---- input ----
-      const setPlate = want => { if (plateIdx !== want) { plateIdx = want; if (pair) Audio_.click(0.14, 1500, 0.03); } };
+      const setPlate = want => { if (plateIdx !== want) { plateIdx = want; if (pair) Audio_.click(0.14, 1500, 0.03); } $('#btn-a').classList.toggle('on', !plateIdx); $('#btn-b').classList.toggle('on', !!plateIdx); };
+      $('#btn-a').onclick = () => setPlate(0); $('#btn-b').onclick = () => setPlate(1);
       const kd = e => { if (/TEXTAREA|INPUT/.test(document.activeElement && document.activeElement.tagName)) return; keys[e.key] = true;
         if (e.key === ' ') { e.preventDefault(); if (!e.repeat) setPlate(plateIdx ^ 1); }
         if (e.key === 'ArrowLeft') { e.preventDefault(); setPlate(0); } if (e.key === 'ArrowRight') { e.preventDefault(); setPlate(1); }
@@ -194,7 +198,7 @@ const Blink = (() => {
       canvas.addEventListener('contextmenu', e => e.preventDefault());
       canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId);
         const pan = e.button !== 0 || e.shiftKey || !pencil;
-        if (!pan) { const [x, y] = local(e); stroke = [[x + vx, y + vy]]; Audio_.play('pencil_write', 0.35); return; }
+        if (!pan) { const [x, y] = local(e); stroke = [[x + vx, y + vy]]; Audio_.play('pencil_draw', 0.35); return; }
         drag = { x: e.clientX, y: e.clientY, vx, vy, moved: false }; });
       canvas.addEventListener('pointermove', e => {
         if (stroke) { const [x, y] = local(e); const l = stroke[stroke.length - 1]; if (Math.hypot(x + vx - l[0], y + vy - l[1]) > 2) stroke.push([x + vx, y + vy]); return; }
@@ -204,7 +208,7 @@ const Blink = (() => {
         if (drag && !drag.moved) { const [x, y] = local(e); mark(x, y); } drag = null; });
       const togglePencil = () => { pencil = !pencil; canvas.style.cursor = pencil ? 'cell' : 'grab'; $('#btn-pencil').classList.toggle('on', pencil); toast(pencil ? 'Pencil in hand. Draw a ring around a suspect.' : 'Hand: drag to move the plate.', 1500); };
       $('#btn-pencil').onclick = togglePencil; canvas.style.cursor = 'cell';
-      const toggleSide = () => { side = !side; canvas.width = side ? size * 2 + 8 : size; canvas.height = size; canvas.style.width = ''; $('#btn-side').classList.toggle('on', side); if (side) { const maxW = window.innerWidth - 420; if (canvas.width > maxW) canvas.style.width = maxW + 'px'; } };
+      const toggleSide = () => { side = !side; canvas.width = side ? size * 2 + 8 : size; canvas.height = size; canvas.style.width = ''; $('#btn-side').classList.toggle('on', side); if (side) { const maxW = window.innerWidth - 2 * 48 - 300 - 48; if (canvas.width > maxW) canvas.style.width = maxW + 'px'; } };
       $('#btn-side').onclick = toggleSide;
       const toggleNeg = () => { neg = !neg; canvas.classList.toggle('negative', neg); $('#btn-neg').classList.toggle('on', neg); Prefs.set('negative', neg); };
       if (Prefs.get('negative')) toggleNeg();
