@@ -158,6 +158,10 @@ const Game = (() => {
   const SAME_FIELD = 4;
   const plateName = p => p.label ? `${Astro.fieldStr(p.label.ra, p.label.dec)} · ${Astro.nearestRegion(p.label.ra, p.label.dec).name}` : 'unlabelled plate';
   const pairName = pr => plateName(pr.a);
+  function pairOf(a, b) { if (a.t > b.t) [a, b] = [b, a]; const days = Math.round((b.t - a.t) / Astro.DAY);
+    const ps = S.plates.filter(p => p.developed && !p.ruined && p.label);
+    const third = ps.some(p => p !== a && p !== b && Astro.sep(p.label.ra, p.label.dec, a.label.ra, a.label.dec) <= SAME_FIELD && Astro.sep(p.ra, p.dec, a.ra, a.dec) <= SAME_FIELD);
+    return { key: `${a.id}-${b.id}`, a, b, days, third, mismatch: Astro.sep(a.ra, a.dec, b.ra, b.dec) > SAME_FIELD }; }
   function pairs() {
     const ps = S.plates.filter(p => p.developed && !p.ruined && p.label).sort((a, b) => a.t - b.t); const out = [];
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
@@ -214,7 +218,7 @@ const Game = (() => {
     const n = $('#hud-nav'); n.innerHTML = ''; n.classList.remove('hidden'); if (n.parentElement !== $('#hud')) $('#hud-focus').before(n);
     const next = nextLoc(), tip = suggestion();
     const seen = S.seenPlates || [], fresh = S.plates.filter(p => !seen.includes(p.id)).length;
-    const COUNT = { darkroom: undeveloped().length, comparator: unblinked().length, plates: fresh };
+    const COUNT = { darkroom: undeveloped().length, comparator: unblinked().length, plates: fresh, logbook: S.plates.filter(p => !p.label && !p.ruined).length };
     LOCS.forEach(([id, name]) => { const b = el('button', (id === locOf(S.loc) ? 'on' : '') + (next === id && id !== locOf(S.loc) ? ' hint' : ''), name + (COUNT[id] ? `<i class="badge">${COUNT[id]}</i>` : '')); b.title = next === id ? tip : ''; b.onclick = () => goTo(id); n.appendChild(b); });
     // the body readout opens the status page
     const f = $('#hud-focus'); f.title = 'Status of the programme'; f.style.cursor = 'pointer'; f.onclick = () => goTo('status');
@@ -578,6 +582,10 @@ const Game = (() => {
     const pair = Sky.buildPair(plateSpec(p)), cv = pair.a; cv.className = 'full'; stage.appendChild(cv);
     const next = el('button', 'arrow next', '›'); next.title = 'Next plate (→)'; next.disabled = at >= live.length - 1; next.onclick = () => go(at + 1); big.appendChild(next);
     big.appendChild(el('div', 'cap', plateCaption(p) + '<br><span class="hint">Click the plate to zoom · ← → to move · Esc to close</span>'));
+    // compare with any other developed plate of the same field, not only the automatic partner
+    const mates = p.developed && p.label && !p.ruined ? S.plates.filter(q => q !== p && q.developed && q.label && !q.ruined && Astro.sep(q.label.ra, q.label.dec, p.label.ra, p.label.dec) <= SAME_FIELD).sort((x, y) => x.t - y.t) : [];
+    if (mates.length) { const row = el('div', 'compare'); row.innerHTML = `<label>Compare with <select>${mates.map(q => { const d = Math.abs(Math.round((q.t - p.t) / Astro.DAY)); return `<option value="${q.id}">No. ${q.id} · ${Astro.fmtShort(q.t)} · ${d} night${d === 1 ? '' : 's'} apart${d < 1 ? ' (same night)' : d > 14 ? ' (long)' : ''}</option>`; }).join('')}</select></label>`;
+      const go = el('button', 'primary', 'Blink'); go.onclick = () => { const q = S.plates.find(x => x.id === +row.querySelector('select').value); if (S.focus < 0.12) return toast('The eyes are done. Rest first.', 2000); blink(pairOf(p, q)); }; row.appendChild(go); bar.insertBefore(row, x); }
     let zoom = false; cv.onclick = e => { zoom = !zoom; cv.classList.toggle('zoom', zoom); if (zoom) { const r = cv.getBoundingClientRect(); stage.scrollTo((e.clientX - r.left) / r.width * cv.scrollWidth - stage.clientWidth / 2, (e.clientY - r.top) / r.height * cv.scrollHeight - stage.clientHeight / 2); } };
     const kd = e => { if (e.key === 'ArrowLeft') go(at - 1); else if (e.key === 'ArrowRight') go(at + 1); else if (e.key === 'Escape') big.remove(); else return; window.removeEventListener('keydown', kd); };
     window.addEventListener('keydown', kd); const obs = new MutationObserver(() => { if (!document.contains(big)) { window.removeEventListener('keydown', kd); obs.disconnect(); } }); obs.observe(root, { childList: true });

@@ -309,6 +309,9 @@ button.primary:hover { background: var(--paper-bright); border-color: var(--pape
 .plate-view .bar { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s3); font: var(--t-ui); color: var(--paper); }
 .plate-view .bar .count { color: var(--paper-dim); }
 .plate-view .bar button.close { margin-left: auto; }
+.plate-view .bar .compare { display: flex; align-items: center; gap: var(--s1); margin-left: var(--s3); }
+.plate-view .bar .compare select { font: var(--t-meta); color: var(--paper); background: #15171a; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 4px 8px; }
+.plate-view .bar .compare button.primary { font-size: 16px; padding: 6px 14px; }
 .plate-view .stage { grid-column: 2; display: flex; align-items: center; justify-content: center; overflow: auto; min-height: 0; }
 .plate-view canvas.full { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; border: 6px solid #e2dccb; cursor: zoom-in; }
 .plate-view canvas.full.zoom { max-width: none; max-height: none; cursor: zoom-out; margin: auto; }
