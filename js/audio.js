@@ -19,7 +19,7 @@ const Audio_ = (() => {
     return null;
   }
   async function load(name) {
-    if (buffers[name] || missing.has(name)) return buffers[name];
+    if (buffers[name] || missing.has(name) || SYNTH_BEDS.includes(name)) return buffers[name];   // beds are synthesised, never fetched
     const b = await fetchBuffer(name);
     if (b) buffers[name] = b; else missing.add(name);
     return b;
