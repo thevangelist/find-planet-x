@@ -521,12 +521,15 @@ const Game = (() => {
       if (i === last) { pg.innerHTML += `<div class="entry write"><span class="d">${Astro.fmt(S.t)}, ${hhmm(S.clock)}</span><br><textarea rows="2" placeholder="write…"></textarea></div><button id="lb-save" class="primary">Write</button> <button id="lb-sketch">Sketch</button>`; }
       pg.querySelectorAll('canvas.sk').forEach(cv => sketchPad(cv, S.log[+cv.dataset.i]));
       return pg; };
-    const book = el('div', 'notebook fade'); book.appendChild(page(left, 'left')); book.appendChild(page(left + 1, 'right')); root.appendChild(book);
+    const book = el('div', 'notebook fade');
+    const cs = getComputedStyle(document.documentElement), top = parseFloat(cs.getPropertyValue('--top')), foot = parseFloat(cs.getPropertyValue('--foot')), gutter = parseFloat(cs.getPropertyValue('--gutter'));
+    book.style.setProperty('--book', Math.min(1, (innerHeight - top - foot - 48) / 580, (innerWidth - 2 * gutter) / 820).toFixed(3));
+    book.appendChild(page(left, 'left')); book.appendChild(page(left + 1, 'right')); root.appendChild(book);
     const ctl = el('div', 'book-ctl', `<button id="pg-prev" ${left === 0 ? 'disabled' : ''}>Earlier pages</button><span>pages ${left + 1} and ${left + 2} of ${last + 1}</span><button id="pg-next" ${left + 2 > last ? 'disabled' : ''}>Later pages</button>`); root.appendChild(ctl);
     const flip = i => { Audio_.play('page_turn', 0.4, 3); logbook(i); };
     $('#pg-prev').onclick = () => flip(left - 2); $('#pg-next').onclick = () => flip(left + 2);
     const o = order();
-    const stats = el('div', 'expose-info'); stats.innerHTML = `plates <b>${S.plates.filter(p => !p.ruined).length}</b> · pairs blinked <b>${Object.keys(S.blinked).length}</b> · suspects open <b>${o.open}</b><br>discoveries <b>${S.found_ids.length}</b>${S.found_ids.length ? ': ' + S.found_ids.map(id => FINDS.list.find(f => f.id === id).name).join(', ') : ''}<br>order: <b>${o.label}</b>${o.silent > 7 ? ` · nothing written for ${Math.round(o.silent)} days` : ''}`; root.appendChild(stats);
+    const stats = el('div', 'expose-info logbook-stats'); stats.innerHTML = `plates <b>${S.plates.filter(p => !p.ruined).length}</b> · pairs blinked <b>${Object.keys(S.blinked).length}</b> · suspects open <b>${o.open}</b><br>discoveries <b>${S.found_ids.length}</b>${S.found_ids.length ? ': ' + S.found_ids.map(id => FINDS.list.find(f => f.id === id).name).join(', ') : ''}<br>order: <b>${o.label}</b>${o.silent > 7 ? ` · nothing written for ${Math.round(o.silent)} days` : ''}`; root.appendChild(stats);
     const unl = S.plates.filter(p => !p.label && !p.ruined);
     if (unl.length) { const u = el('div', 'unlabelled', `<b>Unlabelled plates</b> ` + unl.map(p => `<label>No. ${p.id}, ${Astro.fmtShort(p.t)} <input data-id="${p.id}" placeholder="7h 20m +22°" autocomplete="off"></label>`).join('')); root.appendChild(u);
       u.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => { const m = inp.value.trim().match(/^(.+?)\s+([+\-−]\d.*)$/); const r = m && Astro.parseRA(m[1]), d = m && Astro.parseDec(m[2]);

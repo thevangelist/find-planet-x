@@ -187,7 +187,7 @@ button.primary:hover { background: var(--paper-bright); border-color: var(--pape
 
 
 /* logbook: an A6 notebook, two pages open on the desk */
-.notebook { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -48%) rotate(-.6deg); display: flex; z-index: 10;
+.notebook { position: absolute; left: 50%; top: calc(var(--top) + (100vh - var(--top) - var(--foot) - 56px) / 2); transform: translate(-50%, -50%) rotate(-.6deg) scale(var(--book, 1)); display: flex; z-index: 10;
   box-shadow: var(--shadow), 0 40px 80px #000; border-radius: var(--r-sm); }
 .notebook .page { width: 400px; height: 560px; background: #d9d0b8; color: var(--ink); padding: 26px 24px 22px; font: var(--t-meta); line-height: 28px; overflow: hidden; position: relative;
   background-image: repeating-linear-gradient(transparent 0 27px, rgba(60,50,30,.14) 27px 28px); background-position: 0 26px; }
@@ -207,8 +207,8 @@ button.primary:hover { background: var(--paper-bright); border-color: var(--pape
 .notebook button { color: var(--ink); border-color: var(--paper-line); margin-top: 6px; }
 .notebook button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .notebook button.primary:hover { background: #000; border-color: #000; color: var(--paper-bright); }
-.book-ctl { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 11; display: flex; align-items: center; gap: var(--s2); font: var(--t-meta); color: var(--paper-dim); }
-.unlabelled { position: absolute; right: var(--gutter); bottom: 64px; z-index: 11; max-width: 320px; font: var(--t-meta); color: var(--paper-dim); background: rgba(19,17,6,.78); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s2); }
+.book-ctl { position: absolute; left: 50%; bottom: calc(var(--foot) + 8px); transform: translateX(-50%); z-index: 11; display: flex; align-items: center; gap: var(--s2); font: var(--t-meta); color: var(--paper-dim); }
+.unlabelled { position: absolute; right: var(--gutter); top: var(--top); z-index: 11; max-width: 320px; font: var(--t-meta); color: var(--paper-dim); background: rgba(19,17,6,.78); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s2); }
 .unlabelled b { display: block; color: var(--paper); font: var(--t-label); margin-bottom: var(--s1); }
 .unlabelled label { display: block; margin: 4px 0; }
 .unlabelled input, .label-form input { font: var(--t-body); color: var(--paper); background: rgba(216,205,180,.06); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 4px 10px; width: 150px; outline: none; }
@@ -218,7 +218,7 @@ button.primary:hover { background: var(--paper-bright); border-color: var(--pape
 #expose-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #expose-start { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20; width: 360px; text-align: center; box-shadow: 0 0 0 6px rgba(14,12,6,.7), 0 0 60px #000; }
 #expose-start small { margin-top: 4px; }
-.expose-info { position: absolute; left: var(--gutter); bottom: 64px; z-index: 10; font: var(--t-meta); color: var(--paper-dim); line-height: 1.8; }
+.expose-info { position: absolute; left: var(--gutter); top: var(--top); max-width: 240px; z-index: 10; font: var(--t-meta); color: var(--paper-dim); line-height: 1.8; }
 .expose-info b { color: var(--paper); font-weight: 600; }
 
 /* blink comparator */
@@ -270,13 +270,14 @@ button.primary:hover { background: var(--paper-bright); border-color: var(--pape
 .credits-page footer { margin-top: var(--s4); }
 @media (min-width: 1200px) { .credits-page .cols { columns: 2; } }
 
-@media (max-width: 1360px) {
+@media (max-width: 1500px) {
   :root { --top: 112px; }
   #hud { flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 6px; row-gap: 4px; }
   #hud-nav { order: 10; flex-basis: 100%; justify-content: center; overflow-x: auto; }
   #hud-focus { margin-left: auto; }
   #hud-region, #hud-extra { display: none; }
 }
+@media (max-width: 1200px) { .logbook-stats { display: none; } }
 @media (max-width: 900px) {
   :root { --gutter: 16px; --foot: 72px; }
   #hud { gap: var(--s2); } #hud-acts { margin-left: 0; } #hud-coffee { margin-left: 0; }
