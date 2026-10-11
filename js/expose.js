@@ -8,6 +8,10 @@ const Expose = (() => {
       const c = el('canvas'); c.id = 'expose-canvas'; scene.appendChild(c);
       const info = el('div', 'expose-info'); scene.appendChild(info);
       const cap = el('div', 'caption'); cap.style.left = 'auto'; cap.style.width = '34vw'; scene.appendChild(cap);
+      // the shutter stays closed until the player says so; then the mouse is the slow-motion control
+      let started = false;
+      const start = el('button', 'primary', 'Open the shutter<small>Guide with the mouse: keep the star between the wires. Arrow keys work too.</small>'); start.id = 'expose-start'; scene.appendChild(start);
+      start.onclick = () => { started = true; start.remove(); Audio_.play('glass_plate_set', 0.4); c.style.cursor = 'none'; };
       const g = c.getContext('2d');
       const fit = () => { c.width = window.innerWidth; c.height = window.innerHeight; }; fit(); window.addEventListener('resize', fit);
       const SEC_PER_MIN = 0.14, total = opts.minutes;   // an hour of guiding in about eight seconds
@@ -30,7 +34,7 @@ const Expose = (() => {
       function nudge(dx, dy) { vel.x += dx * 14; vel.y += dy * 14; Audio_.play('telescope_click', 0.35, 5); }
       const kd = e => { const k = e.key; if (k === 'ArrowLeft' || k === 'a') nudge(1, 0); else if (k === 'ArrowRight' || k === 'd') nudge(-1, 0); else if (k === 'ArrowUp' || k === 'w') nudge(0, 1); else if (k === 'ArrowDown' || k === 's') nudge(0, -1); else if (k === 'Escape') end(true); else return; e.preventDefault(); };
       window.addEventListener('keydown', kd);
-      c.addEventListener('pointerdown', e => { const dx = e.clientX - c.width / 2, dy = e.clientY - c.height / 2; nudge(-Math.sign(dx) * (Math.abs(dx) > 20), -Math.sign(dy) * (Math.abs(dy) > 20)); });
+      c.addEventListener('pointermove', e => { if (!started) return; vel.x += clamp(e.movementX, -40, 40) * 1.1; vel.y += clamp(e.movementY, -40, 40) * 1.1; });
 
       function end(ruined) {
         running = false; window.removeEventListener('keydown', kd); window.removeEventListener('resize', fit);
@@ -38,13 +42,13 @@ const Expose = (() => {
       }
       function frame(now) {
         if (!running) return;
-        const dt = Math.min(0.05, (now - last) / 1000); last = now; minutes += dt / SEC_PER_MIN;
+        const dt = started ? Math.min(0.05, (now - last) / 1000) : 0; last = now; minutes += dt / SEC_PER_MIN;
         // periodic drive error + wind gusts + slow drift
         phase += dt * 0.7;
         const drive = { x: Math.sin(phase) * 9, y: Math.cos(phase * 0.6) * 4 };
         // calm guiding, then a jolt: the drive catches, a gust hits the dome, a hand on the rail. Correct it, then it is quiet again.
         const wk = (opts.wind ? 1.6 : 1) * (opts.tired ? 1.4 : 1);
-        if (minutes * SEC_PER_MIN >= nextGust) { nextGust += (opts.wind ? 1.2 : 1.8) + Math.random() * 1.2; const a = Math.random() * Math.PI * 2, k = (10 + Math.random() * 10) * wk; vel.x += Math.cos(a) * k; vel.y += Math.sin(a) * k; Audio_.play('breath_cold', 0.2); }
+        if (minutes * SEC_PER_MIN >= nextGust) { nextGust += (opts.wind ? 1.2 : 1.8) + Math.random() * 1.2; const a = Math.random() * Math.PI * 2, k = (10 + Math.random() * 10) * wk; vel.x += Math.cos(a) * k; vel.y += Math.sin(a) * k; }
         vel.x += (Math.random() - .5) * 4 * wk * dt + 0.9 * dt; vel.y += (Math.random() - .5) * 4 * wk * dt + 0.4 * dt;
         vel.x *= 0.985; vel.y *= 0.985; pos.x += vel.x * dt; pos.y += vel.y * dt;
         const sx = pos.x + drive.x * 0.3, sy = pos.y + drive.y * 0.3, off = Math.hypot(sx, sy);
@@ -59,11 +63,12 @@ const Expose = (() => {
         g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip();
         g.fillStyle = '#05060a'; g.fillRect(0, 0, W, H);
         stars.forEach(s => { const x = cx + (s.x - .5) * R * 2.2 + sx, y = cy + (s.y - .5) * R * 2.2 + sy, size = 1 + s.m * 2.2;
-          const rx = x - cx, ry = y - cy, rd = Math.hypot(rx, ry) / R, ca = rd * rd * 2.2;
-          if (ca > 0.3) { const ux = rx / (rd * R + 1e-6), uy = ry / (rd * R + 1e-6);
-            g.fillStyle = `rgba(255,80,60,${0.12 + s.m * 0.3})`; g.fillRect(x + ux * ca, y + uy * ca, size, size);
-            g.fillStyle = `rgba(80,120,255,${0.12 + s.m * 0.3})`; g.fillRect(x - ux * ca, y - uy * ca, size, size); }
-          g.fillStyle = `rgba(230,228,220,${0.2 + s.m * 0.6})`; g.fillRect(x, y, size, size); });
+          // round points; a faint colour fringe only in the outer third of the field, so stars never read as dashes
+          const rx = x - cx, ry = y - cy, rd = Math.hypot(rx, ry) / R, ca = Math.max(0, rd - 0.65) * 3;
+          if (ca > 0) { const ux = rx / (rd * R + 1e-6), uy = ry / (rd * R + 1e-6);
+            g.fillStyle = `rgba(255,80,60,${0.05 + s.m * 0.12})`; g.beginPath(); g.arc(x + ux * ca, y + uy * ca, size / 2, 0, 7); g.fill();
+            g.fillStyle = `rgba(80,120,255,${0.05 + s.m * 0.12})`; g.beginPath(); g.arc(x - ux * ca, y - uy * ca, size / 2, 0, 7); g.fill(); }
+          g.fillStyle = `rgba(230,228,220,${0.2 + s.m * 0.6})`; g.beginPath(); g.arc(x, y, size / 2, 0, 7); g.fill(); });
         // now and then a meteor crosses the field, a faint streak gone in a blink
         const tsec = minutes * SEC_PER_MIN;
         if (!meteor && tsec > nextMeteor) { nextMeteor = Infinity; const a = Math.random() * Math.PI * 2; meteor = { x: cx + (Math.random() - .5) * R * 1.4, y: cy + (Math.random() - .5) * R * 1.4, dx: Math.cos(a) * R * 2.6, dy: Math.sin(a) * R * 2.6, t0: tsec, life: 0.25 + Math.random() * 0.2, bright: Math.random() < 0.25 ? 2.2 : 1 }; }

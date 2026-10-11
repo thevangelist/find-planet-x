@@ -214,6 +214,7 @@ button.primary:hover { background: var(--paper-bright); border-color: var(--pape
 
 /* exposure */
 #expose-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#expose-start { position: absolute; left: 50%; top: calc(50% + 40vh * 0.34 + 48px); transform: translateX(-50%); z-index: 20; width: 380px; }
 .expose-info { position: absolute; left: var(--gutter); bottom: 64px; z-index: 10; font: var(--t-meta); color: var(--paper-dim); line-height: 1.8; }
 .expose-info b { color: var(--paper); font-weight: 600; }
 
