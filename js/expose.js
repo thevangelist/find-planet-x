@@ -35,7 +35,7 @@ const Expose = (() => {
       function nudge(dx, dy) { vel.x += dx * 14; vel.y += dy * 14; Audio_.play('telescope_click', 0.35, 5); }
       const kd = e => { const k = e.key; if (k === 'ArrowLeft' || k === 'a') nudge(1, 0); else if (k === 'ArrowRight' || k === 'd') nudge(-1, 0); else if (k === 'ArrowUp' || k === 'w') nudge(0, 1); else if (k === 'ArrowDown' || k === 's') nudge(0, -1); else if (k === 'Escape') end(true); else return; e.preventDefault(); };
       window.addEventListener('keydown', kd);
-      c.addEventListener('pointermove', e => { if (!started || performance.now() < mouseAt) return; vel.x += clamp(e.movementX, -40, 40) * 1.1; vel.y += clamp(e.movementY, -40, 40) * 1.1; });
+      c.addEventListener('pointermove', e => { if (!started || performance.now() < mouseAt) return; vel.x -= clamp(e.movementX, -40, 40) * 1.1; vel.y -= clamp(e.movementY, -40, 40) * 1.1; });
 
       function end(ruined) {
         running = false; window.removeEventListener('keydown', kd); window.removeEventListener('resize', fit);
