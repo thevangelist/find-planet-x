@@ -537,11 +537,11 @@ const Game = (() => {
   // ---------- plate gallery: every plate as a contact print, one plate large on click ----------
   function plateSpec(p) {
     const pr = pairs().find(x => x.a === p || x.b === p), seed = fieldSeed(pr ? pr.a.ra : p.ra, pr ? pr.a.dec : p.dec);
-    return { seed, center: { ra: p.ra * 15, dec: p.dec }, days: 0, pluto: false, planets: [], finds: [], asteroids: 0, haze: !!(p.haze || p.dev === 'thin'), fog: [p.dev === 'fogged' ? 'fogged' : p.dev, 'good'], density: fieldDensity(seed) };
+    return { seed, center: { ra: p.ra * 15, dec: p.dec }, days: 0, pluto: false, planets: [], finds: [], asteroids: 0, ruined: !!p.ruined, haze: !!(p.haze || p.dev === 'thin'), fog: [p.dev === 'fogged' ? 'fogged' : p.dev, 'good'], density: fieldDensity(seed) };
   }
   function plateCaption(p) {
     const pr = pairs().find(x => x.a === p || x.b === p), other = pr ? (pr.a === p ? pr.b : pr.a) : null;
-    return [`<b>No. ${p.id}</b> · ${Astro.fmtShort(p.t)}`, p.ruined ? 'ruined' : p.label ? `${Astro.fieldStr(p.label.ra, p.label.dec)} · ${Astro.nearestRegion(p.label.ra, p.label.dec).name}` : 'no label',
+    return [`<b>No. ${p.id}</b> · ${Astro.fmtShort(p.t)}`, p.ruined ? 'ruined: the guide star drifted, the stars trailed' : p.label ? `${Astro.fieldStr(p.label.ra, p.label.dec)} · ${Astro.nearestRegion(p.label.ra, p.label.dec).name}` : 'no label',
       p.ruined ? '' : !p.developed ? 'in the rack, undeveloped' : `developed ${p.dev || 'good'}${pr ? ` · pair with No. ${other.id}${S.blinked[pr.key] ? ', blinked' : ''}` : ''}`].filter(Boolean).join('<br>');
   }
   function plateNeed(p) {
@@ -560,14 +560,14 @@ const Game = (() => {
     const ps = S.plates.slice().sort((a, b) => b.t - a.t);
     const grid = el('div', 'gallery fade'); root.appendChild(grid);
     if (!ps.length) grid.appendChild(el('p', 'empty', 'No plates yet. Every exposure ends up here.'));
-    ps.forEach(p => { const card = el('div', 'plate-card' + (p.ruined ? ' ruined' : '')); const cv = p.ruined ? el('div', 'thumb ruined') : Sky.thumb(plateSpec(p), 216); cv.classList.add('thumb'); card.appendChild(cv);
-      card.appendChild(el('div', 'cap', plateCaption(p))); if (!p.ruined) card.onclick = () => gallery(p.id);
+    ps.forEach(p => { const card = el('div', 'plate-card' + (p.ruined ? ' ruined' : '')); const cv = Sky.thumb(plateSpec(p), 216); cv.classList.add('thumb'); card.appendChild(cv);
+      card.appendChild(el('div', 'cap', plateCaption(p))); card.onclick = () => gallery(p.id);
       const need = plateNeed(p); if (need) { card.appendChild(el('div', 'need', need.text));
         if (need.shoot) { const w = Astro.weather(S.t, 23), can = w.ok && Astro.moonDark(S.t); const b = el('button', 'secondary', need.shoot + `<small>${isDark() ? (can ? 'Tonight. The telescope turns there.' : 'Not tonight: ' + (w.ok ? 'moon' : 'weather') + '.') : (can ? 'At dusk the telescope turns there.' : 'Not tonight.')}</small>`); b.disabled = !can && !(isDark() && w.ok); b.onclick = e => { e.stopPropagation(); shootField(p); }; card.appendChild(b); } }
       grid.appendChild(card); });
     const p = ps.find(x => x.id === openId); if (!p) return;
     const big = el('div', 'plate-view fade'); root.appendChild(big); Audio_.play('glass_plate_set', 0.4);
-    const live = ps.filter(q => !q.ruined), at = live.indexOf(p), go = i => { const q = live[i]; if (q) gallery(q.id); };
+    const live = ps, at = live.indexOf(p), go = i => { const q = live[i]; if (q) gallery(q.id); };
     const bar = el('div', 'bar', `<b>No. ${p.id}</b> · ${Astro.fmtShort(p.t)}<span class="count">Plate ${at + 1} of ${live.length}</span>`); big.appendChild(bar);
     const x = el('button', 'close', 'Close'); x.onclick = () => big.remove(); bar.appendChild(x);
     const prev = el('button', 'arrow prev', '‹'); prev.title = 'Previous plate (←)'; prev.disabled = at <= 0; prev.onclick = () => go(at - 1); big.appendChild(prev);

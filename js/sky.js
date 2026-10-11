@@ -144,11 +144,14 @@ const Sky = (() => {
       // slight registration offset + per-plate seeing (second plate a hair softer)
       const off = { x: 0, y: 0 };   // the comparator stage is registered: stars do not jump between plates
       const soft = idx ? 0.25 : 0;
+      const trail = spec.ruined ? { len: 40 + rr() * 90, ang: rr() * Math.PI * 2, steps: 10 } : null;
+      const put = (s, x, y) => { if (!trail) { g.drawImage(s.c, x - s.size / 2, y - s.size / 2); return; }
+        g.globalAlpha = 0.28; for (let k = 0; k <= trail.steps; k++) { const u = k / trail.steps, wob = Math.sin(u * 9) * 2; g.drawImage(s.c, x + Math.cos(trail.ang) * trail.len * u - Math.sin(trail.ang) * wob - s.size / 2, y + Math.sin(trail.ang) * trail.len * u + Math.cos(trail.ang) * wob - s.size / 2); } g.globalAlpha = 1; };
       for (let i = 0; i < nStars; i++) {
         const m = stars[i * 3 + 2] + (idx ? gauss(rr) * 0.08 : 0);
-        const s = sprite(m + soft); g.drawImage(s.c, stars[i * 3] + off.x - s.size / 2, stars[i * 3 + 1] + off.y - s.size / 2);
+        put(sprite(m + soft), stars[i * 3] + off.x, stars[i * 3 + 1] + off.y);
       }
-      named.forEach(n => { const s = sprite(n.mag); g.drawImage(s.c, n.x + off.x - s.size / 2, n.y + off.y - s.size / 2);
+      named.forEach(n => { const s = sprite(n.mag); put(s, n.x + off.x, n.y + off.y);
         if (n.mag < 5) { const rad = s.r * 2.6, gr = g.createRadialGradient(n.x + off.x, n.y + off.y, s.r * 0.8, n.x + off.x, n.y + off.y, rad); gr.addColorStop(0, `rgba(225,222,215,${0.12 + (5 - n.mag) * 0.03})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(n.x + off.x, n.y + off.y, rad, 0, 7); g.fill(); } });
       DSO.forEach(o => { const mm = project(spec.center, o[0] * 15, o[1]).mm; if (Math.abs(mm.x) < PLATE_W_MM / 2 + 30 && Math.abs(mm.y) < PLATE_H_MM / 2 + 30) { const p = mmToPx(mm); drawDSO(g, { x: p.x + off.x, y: p.y + off.y }, o, rng(hashStr(spec.seed + o[7])), soft); } });
       movers.forEach(m => {
@@ -192,9 +195,11 @@ const Sky = (() => {
     const r = rng(hashStr(spec.seed)), k = w / W, h = Math.round(H * k);
     const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
     g.fillStyle = spec.fog && spec.fog[0] === 'fogged' ? '#5a5955' : '#15171a'; g.fillRect(0, 0, w, h);
-    const st = starField(spec, r);
+    const st = starField(spec, r), rr = rng(hashStr(spec.seed + 'em0')), trail = spec.ruined ? { len: (40 + rr() * 90) * k, ang: rr() * Math.PI * 2 } : null;
     for (let i = 0; i < st.length; i += 3) { const mag = st[i + 2], x = st[i] * k, y = st[i + 1] * k; if (mag > 13.8) continue;
-      const a = clamp((13.8 - mag) / 5, 0.2, 1), sz = Math.max(1, (13.8 - mag) * 0.3); g.fillStyle = `rgba(232,228,220,${a})`; g.fillRect(x - sz / 2, y - sz / 2, sz, sz); }
+      const a = clamp((13.8 - mag) / 5, 0.2, 1), sz = Math.max(1, (13.8 - mag) * 0.3);
+      if (trail) { g.strokeStyle = `rgba(232,228,220,${a * 0.5})`; g.lineWidth = sz; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(trail.ang) * trail.len, y + Math.sin(trail.ang) * trail.len); g.stroke(); continue; }
+      g.fillStyle = `rgba(232,228,220,${a})`; g.fillRect(x - sz / 2, y - sz / 2, sz, sz); }
     BRIGHT_STARS.forEach(s => { const mm = project(spec.center, s[0] * 15, s[1]).mm; if (Math.abs(mm.x) >= PLATE_W_MM / 2 || Math.abs(mm.y) >= PLATE_H_MM / 2) return; const p = mmToPx(mm), sz = Math.max(2, (9 - s[2]) * 1.1);
       g.fillStyle = '#eeebe4'; g.beginPath(); g.arc(p.x * k, p.y * k, sz / 2, 0, 7); g.fill(); });
     const v = g.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, h * 0.85); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = v; g.fillRect(0, 0, w, h);

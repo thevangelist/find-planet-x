@@ -11,7 +11,8 @@ const Expose = (() => {
       // the shutter stays closed until the player says so; then the mouse is the slow-motion control
       let started = false;
       const start = el('button', 'primary', 'Open the shutter<small>Guide with the mouse: keep the star between the wires. Arrow keys work too.</small>'); start.id = 'expose-start'; scene.appendChild(start);
-      start.onclick = () => { started = true; start.remove(); Audio_.play('glass_plate_set', 0.4); c.style.cursor = 'none'; };
+      let mouseAt = Infinity;
+      start.onclick = () => { started = true; mouseAt = performance.now() + 3000; start.remove(); Audio_.play('glass_plate_set', 0.4); showLine('Shutter open. Hand on the slow-motion in three seconds.'); setTimeout(() => { c.style.cursor = 'none'; }, 3000); };
       const g = c.getContext('2d');
       const fit = () => { c.width = window.innerWidth; c.height = window.innerHeight; }; fit(); window.addEventListener('resize', fit);
       const SEC_PER_MIN = 0.14, total = opts.minutes;   // an hour of guiding in about eight seconds
@@ -34,7 +35,7 @@ const Expose = (() => {
       function nudge(dx, dy) { vel.x += dx * 14; vel.y += dy * 14; Audio_.play('telescope_click', 0.35, 5); }
       const kd = e => { const k = e.key; if (k === 'ArrowLeft' || k === 'a') nudge(1, 0); else if (k === 'ArrowRight' || k === 'd') nudge(-1, 0); else if (k === 'ArrowUp' || k === 'w') nudge(0, 1); else if (k === 'ArrowDown' || k === 's') nudge(0, -1); else if (k === 'Escape') end(true); else return; e.preventDefault(); };
       window.addEventListener('keydown', kd);
-      c.addEventListener('pointermove', e => { if (!started) return; vel.x += clamp(e.movementX, -40, 40) * 1.1; vel.y += clamp(e.movementY, -40, 40) * 1.1; });
+      c.addEventListener('pointermove', e => { if (!started || performance.now() < mouseAt) return; vel.x += clamp(e.movementX, -40, 40) * 1.1; vel.y += clamp(e.movementY, -40, 40) * 1.1; });
 
       function end(ruined) {
         running = false; window.removeEventListener('keydown', kd); window.removeEventListener('resize', fit);
@@ -84,6 +85,8 @@ const Expose = (() => {
 
         g.restore();
         g.strokeStyle = '#1d1a14'; g.lineWidth = 10; g.beginPath(); g.arc(cx, cy, R + 5, 0, 7); g.stroke();
+        // the hour fills the rim clockwise from the top; a full ring is a finished plate
+        if (started) { g.strokeStyle = 'rgba(207,196,173,.85)'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.arc(cx, cy, R + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, minutes / total)); g.stroke(); g.lineCap = 'butt'; }
         info.innerHTML = `<b>${opts.regionName}</b><br>${String(Math.floor(minutes)).padStart(2, '0')} of ${total} minutes<br>${opts.tempC} °C${opts.wind ? ', wind' : ''}${opts.haze ? ', thin cloud' : ''}`;
         requestAnimationFrame(frame);
       }
